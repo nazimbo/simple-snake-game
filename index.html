@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake Game with High Score</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            border: 10px solid #4a4a4a;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="400" height="400"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const gridSize = 20;
+        const tileCount = canvas.width / gridSize;
+
+        let snake = [
+            {x: 10, y: 10},
+        ];
+        let food = {x: 15, y: 15};
+        let dx = 0;
+        let dy = 0;
+        let score = 0;
+        let highScore = localStorage.getItem('snakeHighScore') || 0;
+        let lastMoveTime = 0;
+        let baseInterval = 200; // Base interval in milliseconds
+        let currentInterval = baseInterval;
+
+        function calculateMoveInterval() {
+            return Math.max(baseInterval - (score * 5), 50);
+        }
+
+        function gameLoop(currentTime) {
+            if (checkCollision()) {
+                gameOver();
+                return;
+            }
+
+            requestAnimationFrame(gameLoop);
+
+            if (currentTime - lastMoveTime > currentInterval) {
+                clearCanvas();
+                moveSnake();
+                drawSnake();
+                drawFood();
+                drawScore();
+                lastMoveTime = currentTime;
+            }
+        }
+
+        function clearCanvas() {
+            const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+            gradient.addColorStop(0, '#87CEEB');
+            gradient.addColorStop(1, '#E0F6FF');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw grid
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= tileCount; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i * gridSize, 0);
+                ctx.lineTo(i * gridSize, canvas.height);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(0, i * gridSize);
+                ctx.lineTo(canvas.width, i * gridSize);
+                ctx.stroke();
+            }
+        }
+
+        function moveSnake() {
+            const head = {x: snake[0].x + dx, y: snake[0].y + dy};
+            snake.unshift(head);
+
+            if (head.x === food.x && head.y === food.y) {
+                score++;
+                if (score > highScore) {
+                    highScore = score;
+                    localStorage.setItem('snakeHighScore', highScore);
+                }
+                currentInterval = calculateMoveInterval();
+                generateFood();
+            } else {
+                snake.pop();
+            }
+        }
+
+        function drawSnake() {
+            snake.forEach((segment, index) => {
+                const gradient = ctx.createRadialGradient(
+                    (segment.x + 0.5) * gridSize, (segment.y + 0.5) * gridSize, 2,
+                    (segment.x + 0.5) * gridSize, (segment.y + 0.5) * gridSize, gridSize / 2
+                );
+                gradient.addColorStop(0, '#50C878');
+                gradient.addColorStop(1, '#228B22');
+                ctx.fillStyle = gradient;
+
+                ctx.beginPath();
+                ctx.roundRect(segment.x * gridSize, segment.y * gridSize, gridSize - 2, gridSize - 2, 5);
+                ctx.fill();
+
+                if (index === 0) {
+                    // Draw eyes
+                    ctx.fillStyle = 'white';
+                    ctx.beginPath();
+                    ctx.arc((segment.x + 0.3) * gridSize, (segment.y + 0.3) * gridSize, 3, 0, Math.PI * 2);
+                    ctx.arc((segment.x + 0.7) * gridSize, (segment.y + 0.3) * gridSize, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = 'black';
+                    ctx.beginPath();
+                    ctx.arc((segment.x + 0.3) * gridSize, (segment.y + 0.3) * gridSize, 1.5, 0, Math.PI * 2);
+                    ctx.arc((segment.x + 0.7) * gridSize, (segment.y + 0.3) * gridSize, 1.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+        }
+
+        function drawFood() {
+            const gradient = ctx.createRadialGradient(
+                (food.x + 0.5) * gridSize, (food.y + 0.5) * gridSize, 2,
+                (food.x + 0.5) * gridSize, (food.y + 0.5) * gridSize, gridSize / 2
+            );
+            gradient.addColorStop(0, '#FF6347');
+            gradient.addColorStop(1, '#8B0000');
+            ctx.fillStyle = gradient;
+
+            ctx.beginPath();
+            ctx.roundRect(food.x * gridSize, food.y * gridSize, gridSize - 2, gridSize - 2, 5);
+            ctx.fill();
+
+            // Draw shine
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.beginPath();
+            ctx.arc((food.x + 0.3) * gridSize, (food.y + 0.3) * gridSize, 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawScore() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            ctx.fillText(`Score: ${score}`, 10, 10);
+            ctx.fillText(`High Score: ${highScore}`, 10, 30);
+            ctx.fillText(`Speed: ${Math.round(1000 / currentInterval)}`, 10, 50);
+        }
+
+        function generateFood() {
+            food.x = Math.floor(Math.random() * tileCount);
+            food.y = Math.floor(Math.random() * tileCount);
+        }
+
+        function checkCollision() {
+            const head = snake[0];
+            return (
+                head.x < 0 || head.x >= tileCount ||
+                head.y < 0 || head.y >= tileCount ||
+                snake.slice(1).some(segment => segment.x === head.x && segment.y === head.y)
+            );
+        }
+
+        function gameOver() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 40px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('Game Over!', canvas.width / 2, canvas.height / 2 - 60);
+            ctx.font = 'bold 20px Arial';
+            ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 - 20);
+            ctx.fillText(`High Score: ${highScore}`, canvas.width / 2, canvas.height / 2 + 10);
+            ctx.fillText(`Top Speed: ${Math.round(1000 / currentInterval)}`, canvas.width / 2, canvas.height / 2 + 40);
+            ctx.fillText('Press Space to Restart', canvas.width / 2, canvas.height / 2 + 80);
+        }
+
+        function restartGame() {
+            snake = [{x: 10, y: 10}];
+            food = {x: 15, y: 15};
+            dx = 0;
+            dy = 0;
+            score = 0;
+            currentInterval = baseInterval;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'alphabetic';
+            requestAnimationFrame(gameLoop);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            switch (e.key) {
+                case 'ArrowUp': if (dy === 0) { dx = 0; dy = -1; } break;
+                case 'ArrowDown': if (dy === 0) { dx = 0; dy = 1; } break;
+                case 'ArrowLeft': if (dx === 0) { dx = -1; dy = 0; } break;
+                case 'ArrowRight': if (dx === 0) { dx = 1; dy = 0; } break;
+                case ' ':
+                    if (checkCollision()) {
+                        restartGame();
+                    }
+                    break;
+            }
+        });
+
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>
