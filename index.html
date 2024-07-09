@@ -24,21 +24,41 @@
         display: none;
         margin-top: 20px;
       }
+      .controlRow {
+        display: flex;
+        justify-content: center;
+      }
       #mobileControls button {
         font-size: 24px;
-        width: 60px;
-        height: 60px;
+        width: 70px;
+        height: 70px;
         margin: 5px;
+        background-color: rgba(255, 255, 255, 0.7);
+        border: 2px solid #4a4a4a;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        touch-action: manipulation;
+      }
+      #mobileControls button:active {
+        background-color: rgba(200, 200, 200, 0.7);
+        transform: translateY(2px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
       }
     </style>
   </head>
   <body>
     <canvas id="gameCanvas"></canvas>
     <div id="mobileControls">
-      <button id="upBtn">↑</button><br />
-      <button id="leftBtn">←</button>
-      <button id="rightBtn">→</button><br />
-      <button id="downBtn">↓</button>
+      <div class="controlRow">
+        <button id="upBtn">↑</button>
+      </div>
+      <div class="controlRow">
+        <button id="leftBtn">←</button>
+        <button id="rightBtn">→</button>
+      </div>
+      <div class="controlRow">
+        <button id="downBtn">↓</button>
+      </div>
     </div>
     <script>
       const canvas = document.getElementById("gameCanvas");
@@ -259,25 +279,29 @@
 
       if (isMobile()) {
         mobileControls.style.display = "block";
-        document.getElementById("upBtn").addEventListener("click", () => {
+        document.getElementById("upBtn").addEventListener("touchstart", (e) => {
+          e.preventDefault();
           if (dy === 0) {
             dx = 0;
             dy = -1;
           }
         });
-        document.getElementById("downBtn").addEventListener("click", () => {
+        document.getElementById("downBtn").addEventListener("touchstart", (e) => {
+          e.preventDefault();
           if (dy === 0) {
             dx = 0;
             dy = 1;
           }
         });
-        document.getElementById("leftBtn").addEventListener("click", () => {
+        document.getElementById("leftBtn").addEventListener("touchstart", (e) => {
+          e.preventDefault();
           if (dx === 0) {
             dx = -1;
             dy = 0;
           }
         });
-        document.getElementById("rightBtn").addEventListener("click", () => {
+        document.getElementById("rightBtn").addEventListener("touchstart", (e) => {
+          e.preventDefault();
           if (dx === 0) {
             dx = 1;
             dy = 0;
