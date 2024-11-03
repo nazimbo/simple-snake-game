@@ -1,3 +1,111 @@
+class VirtualJoystick {
+    constructor(game) {
+        this.game = game;
+        this.canvas = game.canvas;
+        this.active = false;
+        this.startPos = { x: 0, y: 0 };
+        this.currentPos = { x: 0, y: 0 };
+        this.maxDistance = 50; // Maximum joystick distance
+        this.deadzone = 0.2; // Minimum distance ratio to register movement
+        
+        this.setupEventListeners();
+    }
+
+    setupEventListeners() {
+        // Touch events
+        this.canvas.addEventListener('touchstart', this.handleStart.bind(this), { passive: false });
+        this.canvas.addEventListener('touchmove', this.handleMove.bind(this), { passive: false });
+        this.canvas.addEventListener('touchend', this.handleEnd.bind(this), { passive: false });
+        
+        // Prevent default touch behaviors
+        this.canvas.addEventListener('touchstart', (e) => e.preventDefault());
+        this.canvas.addEventListener('touchmove', (e) => e.preventDefault());
+        this.canvas.addEventListener('touchend', (e) => e.preventDefault());
+    }
+
+    handleStart(e) {
+        if (this.game.isPaused) return;
+        
+        const touch = e.touches[0];
+        const rect = this.canvas.getBoundingClientRect();
+        
+        this.active = true;
+        this.startPos = {
+            x: touch.clientX - rect.left,
+            y: touch.clientY - rect.top
+        };
+        this.currentPos = { ...this.startPos };
+    }
+
+    handleMove(e) {
+        if (!this.active || this.game.isPaused) return;
+        
+        const touch = e.touches[0];
+        const rect = this.canvas.getBoundingClientRect();
+        
+        this.currentPos = {
+            x: touch.clientX - rect.left,
+            y: touch.clientY - rect.top
+        };
+
+        // Calculate direction vector
+        const dx = this.currentPos.x - this.startPos.x;
+        const dy = this.currentPos.y - this.startPos.y;
+        
+        // Calculate distance
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        // Only update direction if beyond deadzone
+        if (distance > this.maxDistance * this.deadzone) {
+            // Normalize the direction
+            const angle = Math.atan2(dy, dx);
+            
+            // Convert angle to closest cardinal direction (right, up, left, down)
+            const sector = Math.round(angle / (Math.PI / 2));
+            
+            // Map sector to direction
+            const directions = [
+                { x: 1, y: 0 },   // right
+                { x: 0, y: -1 },  // up
+                { x: -1, y: 0 },  // left
+                { x: 0, y: 1 }    // down
+            ];
+            
+            // Get the normalized sector index (0-3)
+            const normalizedSector = ((sector % 4) + 4) % 4;
+            
+            // Update game direction if it's a valid move
+            const newDir = directions[normalizedSector];
+            if (this.game.isValidMove(newDir)) {
+                this.game.direction = newDir;
+            }
+        }
+    }
+
+    handleEnd() {
+        this.active = false;
+    }
+
+    draw(ctx) {
+        if (!this.active) return;
+        
+        // Draw base circle
+        ctx.beginPath();
+        ctx.arc(this.startPos.x, this.startPos.y, this.maxDistance, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Draw joystick handle
+        ctx.beginPath();
+        ctx.arc(this.currentPos.x, this.currentPos.y, 20, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.stroke();
+    }
+}
+
 class SnakeGame {
     constructor() {
         this.canvas = document.getElementById('gameCanvas');
@@ -23,10 +131,11 @@ class SnakeGame {
         this.gridSize = 20;
         this.tileCount = 20;
         
-        // Touch handling
-        this.touchStartX = null;
-        this.touchStartY = null;
-        this.minSwipeDistance = 30;
+        // Initialize joystick if on mobile
+        this.joystick = null;
+        if (this.isMobile()) {
+            this.joystick = new VirtualJoystick(this);
+        }
         
         // Initialize game
         this.setupEventListeners();
@@ -38,12 +147,6 @@ class SnakeGame {
         // Keyboard controls
         document.addEventListener('keydown', this.handleKeydown.bind(this));
         
-        // Mobile controls
-        if (this.isMobile()) {
-            this.setupMobileControls();
-            this.setupTouchControls();
-        }
-        
         // Pause button
         document.getElementById('pauseBtn').addEventListener('click', () => this.togglePause());
         document.getElementById('resumeBtn').addEventListener('click', () => this.togglePause());
@@ -51,9 +154,6 @@ class SnakeGame {
         
         // Window resize
         window.addEventListener('resize', () => this.resizeCanvas());
-        
-        // Only prevent default on the game canvas
-        this.canvas.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
     }
 
     resizeCanvas() {
@@ -139,6 +239,11 @@ class SnakeGame {
 
         // Draw food
         this.drawFood();
+
+        // Draw joystick if active
+        if (this.joystick && !this.isPaused) {
+            this.joystick.draw(this.ctx);
+        }
     }
 
     drawGrid() {
@@ -259,81 +364,6 @@ class SnakeGame {
                 this.togglePause();
                 break;
         }
-    }
-
-    setupMobileControls() {
-        const controls = document.getElementById('mobileControls');
-        controls.style.display = 'flex';
-
-        const directions = {
-            up: { x: 0, y: -1 },
-            down: { x: 0, y: 1 },
-            left: { x: -1, y: 0 },
-            right: { x: 1, y: 0 }
-        };
-
-        Object.entries(directions).forEach(([dir, vector]) => {
-            const button = document.getElementById(`${dir}Btn`);
-            
-            // Handle both touch and click events
-            ['touchstart', 'mousedown'].forEach(eventType => {
-                button.addEventListener(eventType, (e) => {
-                    e.preventDefault();
-                    if (!this.isPaused && this.isValidMove(vector)) {
-                        this.direction = vector;
-                    }
-                });
-            });
-            
-            // Prevent default on touchend to avoid any unwanted behavior
-            button.addEventListener('touchend', (e) => {
-                e.preventDefault();
-            });
-        });
-    }
-
-    setupTouchControls() {
-        this.canvas.addEventListener('touchstart', (e) => {
-            this.touchStartX = e.touches[0].clientX;
-            this.touchStartY = e.touches[0].clientY;
-        }, { passive: true });
-
-        this.canvas.addEventListener('touchmove', (e) => {
-            if (!this.touchStartX || !this.touchStartY || this.isPaused) return;
-
-            const touchEndX = e.touches[0].clientX;
-            const touchEndY = e.touches[0].clientY;
-            
-            const deltaX = touchEndX - this.touchStartX;
-            const deltaY = touchEndY - this.touchStartY;
-            
-            // Only process swipe if it's long enough
-            if (Math.abs(deltaX) > this.minSwipeDistance || Math.abs(deltaY) > this.minSwipeDistance) {
-                // Determine primary direction of swipe
-                if (Math.abs(deltaX) > Math.abs(deltaY)) {
-                    // Horizontal swipe
-                    const newDir = { x: deltaX > 0 ? 1 : -1, y: 0 };
-                    if (this.isValidMove(newDir)) {
-                        this.direction = newDir;
-                    }
-                } else {
-                    // Vertical swipe
-                    const newDir = { x: 0, y: deltaY > 0 ? 1 : -1 };
-                    if (this.isValidMove(newDir)) {
-                        this.direction = newDir;
-                    }
-                }
-                
-                // Reset touch start position to allow for continuous swipes
-                this.touchStartX = touchEndX;
-                this.touchStartY = touchEndY;
-            }
-        }, { passive: false });
-
-        this.canvas.addEventListener('touchend', () => {
-            this.touchStartX = null;
-            this.touchStartY = null;
-        }, { passive: true });
     }
 
     isValidMove(newDirection) {
