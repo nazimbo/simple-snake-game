@@ -2,39 +2,20 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Snake Game</title>
-    <link rel="icon" type="image/x-icon" href="https://img.icons8.com/emoji/96/snake-emoji.png">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Snake Game</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="game-container">
-        <div class="game-header">
-            <div class="score-container">
-                <div>Score: <span id="score">0</span></div>
-                <div>High Score: <span id="highScore">0</span></div>
-                <div>Speed: <span id="speed">1</span>x</div>
-            </div>
-            <button id="pauseBtn" class="control-btn">⏸️</button>
-        </div>
-        
-        <canvas id="gameCanvas"></canvas>
-
-        <div id="gameOverScreen" class="game-over-screen hidden">
-            <h2>Game Over!</h2>
-            <div class="stats">
-                <p>Final Score: <span id="finalScore">0</span></p>
-                <p>High Score: <span id="finalHighScore">0</span></p>
-                <p>Top Speed: <span id="finalSpeed">0</span>x</p>
-            </div>
-            <button id="restartBtn" class="control-btn">Play Again</button>
-        </div>
-
-        <div id="pauseScreen" class="pause-screen hidden">
-            <h2>Game Paused</h2>
-            <button id="resumeBtn" class="control-btn">Resume</button>
+        <div class="score">Score: <span id="score">0</span></div>
+        <canvas id="gameCanvas" width="400" height="400"></canvas>
+        <div id="gameOver" class="overlay">
+            <div>Game Over!</div>
+            <div>Final Score: <span id="finalScore">0</span></div>
+            <button id="restartButton">Play Again</button>
         </div>
     </div>
-    <script src="game.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
