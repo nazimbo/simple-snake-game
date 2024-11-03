@@ -5,30 +5,47 @@ class VirtualJoystick {
         this.active = false;
         this.startPos = { x: 0, y: 0 };
         this.currentPos = { x: 0, y: 0 };
-        this.maxDistance = 50; // Maximum joystick distance
-        this.deadzone = 0.2; // Minimum distance ratio to register movement
+        this.maxDistance = 60; // Increased for better control
+        this.deadzone = 0.1; // Reduced deadzone for more responsive controls
+        this.touchId = null; // Track specific touch for multi-touch support
         
         this.setupEventListeners();
     }
 
     setupEventListeners() {
-        // Touch events
-        this.canvas.addEventListener('touchstart', this.handleStart.bind(this), { passive: false });
-        this.canvas.addEventListener('touchmove', this.handleMove.bind(this), { passive: false });
-        this.canvas.addEventListener('touchend', this.handleEnd.bind(this), { passive: false });
+        // Touch events with passive: false to prevent scrolling
+        this.canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            this.handleStart(e);
+        }, { passive: false });
         
-        // Prevent default touch behaviors
-        this.canvas.addEventListener('touchstart', (e) => e.preventDefault());
-        this.canvas.addEventListener('touchmove', (e) => e.preventDefault());
-        this.canvas.addEventListener('touchend', (e) => e.preventDefault());
+        this.canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            this.handleMove(e);
+        }, { passive: false });
+        
+        this.canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            this.handleEnd(e);
+        }, { passive: false });
+        
+        this.canvas.addEventListener('touchcancel', (e) => {
+            e.preventDefault();
+            this.handleEnd(e);
+        }, { passive: false });
     }
 
     handleStart(e) {
-        if (this.game.isPaused) return;
+        if (this.game.isPaused || this.active) return;
         
         const touch = e.touches[0];
         const rect = this.canvas.getBoundingClientRect();
         
+        // Only start if touch is in the lower half of the screen
+        const touchY = touch.clientY - rect.top;
+        if (touchY < this.canvas.height / 2) return;
+        
+        this.touchId = touch.identifier;
         this.active = true;
         this.startPos = {
             x: touch.clientX - rect.left,
@@ -40,9 +57,11 @@ class VirtualJoystick {
     handleMove(e) {
         if (!this.active || this.game.isPaused) return;
         
-        const touch = e.touches[0];
-        const rect = this.canvas.getBoundingClientRect();
+        // Find our touch among all touches
+        const touch = Array.from(e.touches).find(t => t.identifier === this.touchId);
+        if (!touch) return;
         
+        const rect = this.canvas.getBoundingClientRect();
         this.currentPos = {
             x: touch.clientX - rect.left,
             y: touch.clientY - rect.top
@@ -55,51 +74,88 @@ class VirtualJoystick {
         // Calculate distance
         const distance = Math.sqrt(dx * dx + dy * dy);
         
+        // Limit joystick movement to maxDistance
+        if (distance > this.maxDistance) {
+            const angle = Math.atan2(dy, dx);
+            this.currentPos = {
+                x: this.startPos.x + Math.cos(angle) * this.maxDistance,
+                y: this.startPos.y + Math.sin(angle) * this.maxDistance
+            };
+        }
+        
         // Only update direction if beyond deadzone
         if (distance > this.maxDistance * this.deadzone) {
-            // Normalize the direction
+            // Use 8-directional control for more precise movement
             const angle = Math.atan2(dy, dx);
+            const sector = Math.round(angle / (Math.PI / 4));
             
-            // Convert angle to closest cardinal direction (right, up, left, down)
-            const sector = Math.round(angle / (Math.PI / 2));
-            
-            // Map sector to direction
+            // Map sector to direction (8 directions)
             const directions = [
-                { x: 1, y: 0 },   // right
-                { x: 0, y: -1 },  // up
-                { x: -1, y: 0 },  // left
-                { x: 0, y: 1 }    // down
+                { x: 1, y: 0 },    // right
+                { x: 1, y: -1 },   // up-right
+                { x: 0, y: -1 },   // up
+                { x: -1, y: -1 },  // up-left
+                { x: -1, y: 0 },   // left
+                { x: -1, y: 1 },   // down-left
+                { x: 0, y: 1 },    // down
+                { x: 1, y: 1 }     // down-right
             ];
             
-            // Get the normalized sector index (0-3)
-            const normalizedSector = ((sector % 4) + 4) % 4;
+            // Get the normalized sector index (0-7)
+            const normalizedSector = ((sector % 8) + 8) % 8;
+            
+            // Get the basic direction
+            const newDir = directions[normalizedSector];
+            
+            // Simplify diagonal movements to cardinal directions
+            const finalDir = {
+                x: Math.abs(newDir.x) > Math.abs(newDir.y) ? Math.sign(newDir.x) : 0,
+                y: Math.abs(newDir.y) > Math.abs(newDir.x) ? Math.sign(newDir.y) : 0
+            };
             
             // Update game direction if it's a valid move
-            const newDir = directions[normalizedSector];
-            if (this.game.isValidMove(newDir)) {
-                this.game.direction = newDir;
+            if (this.game.isValidMove(finalDir)) {
+                this.game.direction = finalDir;
             }
         }
     }
 
-    handleEnd() {
-        this.active = false;
+    handleEnd(e) {
+        // Only deactivate if our tracked touch ended
+        const activeTouch = Array.from(e.touches).find(t => t.identifier === this.touchId);
+        if (!activeTouch) {
+            this.active = false;
+            this.touchId = null;
+        }
     }
 
     draw(ctx) {
         if (!this.active) return;
         
+        // Draw semi-transparent background
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+        ctx.beginPath();
+        ctx.arc(this.startPos.x, this.startPos.y, this.maxDistance, 0, Math.PI * 2);
+        ctx.fill();
+        
         // Draw base circle
         ctx.beginPath();
         ctx.arc(this.startPos.x, this.startPos.y, this.maxDistance, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
         ctx.lineWidth = 2;
         ctx.stroke();
         
-        // Draw joystick handle
+        // Draw joystick handle with gradient
+        const gradient = ctx.createRadialGradient(
+            this.currentPos.x, this.currentPos.y, 0,
+            this.currentPos.x, this.currentPos.y, 25
+        );
+        gradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+        gradient.addColorStop(1, 'rgba(200, 200, 200, 0.8)');
+        
         ctx.beginPath();
-        ctx.arc(this.currentPos.x, this.currentPos.y, 20, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.arc(this.currentPos.x, this.currentPos.y, 25, 0, Math.PI * 2);
+        ctx.fillStyle = gradient;
         ctx.fill();
         ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
         ctx.stroke();
