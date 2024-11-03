@@ -26,6 +26,10 @@ class Game {
         this.resetGame();
         this.setupEventListeners();
         this.updateHighScoreDisplays();
+
+        // Add food animation properties
+        this.foodPulseValue = 0;
+        this.foodPulseSpeed = 0.05;
     }
 
     resetGame() {
@@ -241,15 +245,50 @@ class Game {
 
     drawFood() {
         const foodPos = this.food.getPosition();
-        this.ctx.fillStyle = '#ff0000';
-        this.ctx.shadowColor = '#ff0000';
-        this.ctx.shadowBlur = 10;
         
+        // Update pulse animation
+        this.foodPulseValue += this.foodPulseSpeed;
+        const pulseScale = 1 + Math.sin(this.foodPulseValue) * 0.1;
+        
+        // Base food color
+        const baseRadius = (this.gridSize / 2.5) * pulseScale;
+        
+        // Draw outer glow
+        const gradient = this.ctx.createRadialGradient(
+            (foodPos.x + 0.5) * this.gridSize,
+            (foodPos.y + 0.5) * this.gridSize,
+            baseRadius * 0.5,
+            (foodPos.x + 0.5) * this.gridSize,
+            (foodPos.y + 0.5) * this.gridSize,
+            baseRadius * 1.5
+        );
+        
+        gradient.addColorStop(0, '#ff0000');
+        gradient.addColorStop(0.6, 'rgba(255, 0, 0, 0.5)');
+        gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
+        
+        this.ctx.fillStyle = gradient;
+        this.ctx.shadowColor = '#ff0000';
+        this.ctx.shadowBlur = 15;
+        
+        // Draw main food circle
         this.ctx.beginPath();
         this.ctx.arc(
             (foodPos.x + 0.5) * this.gridSize,
             (foodPos.y + 0.5) * this.gridSize,
-            this.gridSize / 2.5,
+            baseRadius,
+            0,
+            2 * Math.PI
+        );
+        this.ctx.fill();
+        
+        // Add shine effect
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        this.ctx.beginPath();
+        this.ctx.arc(
+            (foodPos.x + 0.4) * this.gridSize,
+            (foodPos.y + 0.4) * this.gridSize,
+            baseRadius * 0.2,
             0,
             2 * Math.PI
         );
@@ -259,50 +298,130 @@ class Game {
     }
 
     drawSnake() {
-        this.snake.getSegments().forEach((segment, index) => {
+        const segments = this.snake.getSegments();
+        
+        segments.forEach((segment, index) => {
             const isHead = index === 0;
+            const nextSegment = segments[index + 1];
+            const prevSegment = segments[index - 1];
             
             // Calculate gradient colors
             const hue = 120 + (index * 2);
             this.ctx.fillStyle = `hsl(${hue}, 70%, ${isHead ? 60 : 50}%)`;
-
+            
             const x = segment.x * this.gridSize;
             const y = segment.y * this.gridSize;
-            const size = this.gridSize - 1;
-            const radius = isHead ? 8 : 4;
-
+            const size = this.gridSize;
+            
             // Add subtle shadow
             this.ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
             this.ctx.shadowBlur = 3;
             
-            this.ctx.beginPath();
-            this.ctx.roundRect(x, y, size, size, radius);
-            this.ctx.fill();
+            if (isHead) {
+                // Draw head with rounded corners
+                this.drawRoundedSegment(x, y, size, 8);
+                this.drawSnakeEyes(x, y);
+            } else {
+                // Draw body segments with connection logic
+                this.drawBodySegment(segment, prevSegment, nextSegment, x, y, size);
+            }
             
             this.ctx.shadowBlur = 0;
-
-            // Draw eyes on head
-            if (isHead) {
-                this.drawSnakeEyes(x, y);
-            }
         });
+    }
+
+    drawBodySegment(segment, prevSegment, nextSegment, x, y, size) {
+        // Calculate the connection direction with previous and next segments
+        const prevDir = prevSegment ? {
+            x: segment.x - prevSegment.x,
+            y: segment.y - prevSegment.y
+        } : null;
+        
+        const nextDir = nextSegment ? {
+            x: nextSegment.x - segment.x,
+            y: nextSegment.y - segment.y
+        } : null;
+        
+        // Handle wrapping around edges
+        if (prevDir) {
+            if (Math.abs(prevDir.x) > 1) prevDir.x = -Math.sign(prevDir.x);
+            if (Math.abs(prevDir.y) > 1) prevDir.y = -Math.sign(prevDir.y);
+        }
+        if (nextDir) {
+            if (Math.abs(nextDir.x) > 1) nextDir.x = -Math.sign(nextDir.x);
+            if (Math.abs(nextDir.y) > 1) nextDir.y = -Math.sign(nextDir.y);
+        }
+
+        // Draw the main segment body
+        this.ctx.beginPath();
+        this.ctx.roundRect(x, y, size - 1, size - 1, 4);
+        this.ctx.fill();
+
+        // Draw additional rectangles to smooth connections
+        if (prevDir) {
+            this.drawConnectionRect(x, y, size, prevDir);
+        }
+        if (nextDir) {
+            this.drawConnectionRect(x, y, size, nextDir);
+        }
+    }
+
+    drawConnectionRect(x, y, size, direction) {
+        const offset = 2; // Slight overlap for smooth connection
+        if (direction.x !== 0) {
+            const connectionX = direction.x > 0 ? x - offset : x + size - 1;
+            this.ctx.fillRect(connectionX, y, offset * 2, size - 1);
+        }
+        if (direction.y !== 0) {
+            const connectionY = direction.y > 0 ? y - offset : y + size - 1;
+            this.ctx.fillRect(x, connectionY, size - 1, offset * 2);
+        }
+    }
+
+    drawRoundedSegment(x, y, size, radius) {
+        this.ctx.beginPath();
+        this.ctx.roundRect(x, y, size - 1, size - 1, radius);
+        this.ctx.fill();
     }
 
     drawSnakeEyes(x, y) {
         this.ctx.fillStyle = '#000';
         const eyeSize = 3;
+        const eyePadding = 6;
         const dx = this.snake.direction.x;
         const dy = this.snake.direction.y;
         
+        // Add eye shine
+        const shineSize = 1;
+        this.ctx.fillStyle = '#fff';
+        
         if (dx !== 0) {
+            // Draw main eyes
+            this.ctx.fillStyle = '#000';
             this.ctx.beginPath();
-            this.ctx.arc(x + (dx > 0 ? 15 : 5), y + 6, eyeSize, 0, 2 * Math.PI);
-            this.ctx.arc(x + (dx > 0 ? 15 : 5), y + 14, eyeSize, 0, 2 * Math.PI);
+            this.ctx.arc(x + (dx > 0 ? 15 : 5), y + eyePadding, eyeSize, 0, 2 * Math.PI);
+            this.ctx.arc(x + (dx > 0 ? 15 : 5), y + eyePadding + 8, eyeSize, 0, 2 * Math.PI);
+            this.ctx.fill();
+            
+            // Add shine to eyes
+            this.ctx.fillStyle = '#fff';
+            this.ctx.beginPath();
+            this.ctx.arc(x + (dx > 0 ? 14 : 4), y + eyePadding - 1, shineSize, 0, 2 * Math.PI);
+            this.ctx.arc(x + (dx > 0 ? 14 : 4), y + eyePadding + 7, shineSize, 0, 2 * Math.PI);
             this.ctx.fill();
         } else {
+            // Draw main eyes
+            this.ctx.fillStyle = '#000';
             this.ctx.beginPath();
-            this.ctx.arc(x + 6, y + (dy > 0 ? 15 : 5), eyeSize, 0, 2 * Math.PI);
-            this.ctx.arc(x + 14, y + (dy > 0 ? 15 : 5), eyeSize, 0, 2 * Math.PI);
+            this.ctx.arc(x + eyePadding, y + (dy > 0 ? 15 : 5), eyeSize, 0, 2 * Math.PI);
+            this.ctx.arc(x + eyePadding + 8, y + (dy > 0 ? 15 : 5), eyeSize, 0, 2 * Math.PI);
+            this.ctx.fill();
+            
+            // Add shine to eyes
+            this.ctx.fillStyle = '#fff';
+            this.ctx.beginPath();
+            this.ctx.arc(x + eyePadding - 1, y + (dy > 0 ? 14 : 4), shineSize, 0, 2 * Math.PI);
+            this.ctx.arc(x + eyePadding + 7, y + (dy > 0 ? 14 : 4), shineSize, 0, 2 * Math.PI);
             this.ctx.fill();
         }
     }
