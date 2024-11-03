@@ -7,6 +7,7 @@ class SnakeGame {
         this.snake = [];
         this.food = { x: 0, y: 0 };
         this.direction = { x: 0, y: 0 };
+        this.lastDirection = { x: 0, y: 0 };
         
         // Game state
         this.score = 0;
@@ -22,6 +23,11 @@ class SnakeGame {
         this.gridSize = 20;
         this.tileCount = 20;
         
+        // Touch handling
+        this.touchStartX = null;
+        this.touchStartY = null;
+        this.minSwipeDistance = 30;
+        
         // Initialize game
         this.setupEventListeners();
         this.resizeCanvas();
@@ -35,6 +41,7 @@ class SnakeGame {
         // Mobile controls
         if (this.isMobile()) {
             this.setupMobileControls();
+            this.setupTouchControls();
         }
         
         // Pause button
@@ -45,8 +52,8 @@ class SnakeGame {
         // Window resize
         window.addEventListener('resize', () => this.resizeCanvas());
         
-        // Prevent scrolling on mobile
-        document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+        // Only prevent default on the game canvas
+        this.canvas.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
     }
 
     resizeCanvas() {
@@ -266,15 +273,74 @@ class SnakeGame {
         };
 
         Object.entries(directions).forEach(([dir, vector]) => {
-            document.getElementById(`${dir}Btn`).addEventListener('touchstart', (e) => {
+            const button = document.getElementById(`${dir}Btn`);
+            
+            // Handle both touch and click events
+            ['touchstart', 'mousedown'].forEach(eventType => {
+                button.addEventListener(eventType, (e) => {
+                    e.preventDefault();
+                    if (!this.isPaused && this.isValidMove(vector)) {
+                        this.direction = vector;
+                    }
+                });
+            });
+            
+            // Prevent default on touchend to avoid any unwanted behavior
+            button.addEventListener('touchend', (e) => {
                 e.preventDefault();
-                if (!this.isPaused && 
-                    ((vector.x === 0 && this.direction.x === 0) || 
-                     (vector.y === 0 && this.direction.y === 0))) {
-                    this.direction = vector;
-                }
             });
         });
+    }
+
+    setupTouchControls() {
+        this.canvas.addEventListener('touchstart', (e) => {
+            this.touchStartX = e.touches[0].clientX;
+            this.touchStartY = e.touches[0].clientY;
+        }, { passive: true });
+
+        this.canvas.addEventListener('touchmove', (e) => {
+            if (!this.touchStartX || !this.touchStartY || this.isPaused) return;
+
+            const touchEndX = e.touches[0].clientX;
+            const touchEndY = e.touches[0].clientY;
+            
+            const deltaX = touchEndX - this.touchStartX;
+            const deltaY = touchEndY - this.touchStartY;
+            
+            // Only process swipe if it's long enough
+            if (Math.abs(deltaX) > this.minSwipeDistance || Math.abs(deltaY) > this.minSwipeDistance) {
+                // Determine primary direction of swipe
+                if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                    // Horizontal swipe
+                    const newDir = { x: deltaX > 0 ? 1 : -1, y: 0 };
+                    if (this.isValidMove(newDir)) {
+                        this.direction = newDir;
+                    }
+                } else {
+                    // Vertical swipe
+                    const newDir = { x: 0, y: deltaY > 0 ? 1 : -1 };
+                    if (this.isValidMove(newDir)) {
+                        this.direction = newDir;
+                    }
+                }
+                
+                // Reset touch start position to allow for continuous swipes
+                this.touchStartX = touchEndX;
+                this.touchStartY = touchEndY;
+            }
+        }, { passive: false });
+
+        this.canvas.addEventListener('touchend', () => {
+            this.touchStartX = null;
+            this.touchStartY = null;
+        }, { passive: true });
+    }
+
+    isValidMove(newDirection) {
+        // Prevent 180-degree turns
+        return (this.direction.x === 0 && this.direction.y === 0) || 
+               (newDirection.x === 0 && this.direction.x === 0) || 
+               (newDirection.y === 0 && this.direction.y === 0);
     }
 
     isMobile() {
