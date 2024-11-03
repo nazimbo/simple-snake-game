@@ -3,19 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Modern Snake Game</title>
+    <title>Snake Game</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="game-container">
-        <div class="score">Score: <span id="score">0</span></div>
+        <div class="score-container">
+            <div class="score">Score: <span id="score">0</span></div>
+            <div class="high-score">High Score: <span id="highScore">0</span></div>
+        </div>
+
         <canvas id="gameCanvas" width="400" height="400"></canvas>
-        <div id="gameOver" class="overlay">
-            <div>Game Over!</div>
-            <div>Final Score: <span id="finalScore">0</span></div>
-            <button id="restartButton">Play Again</button>
+
+        <!-- Start Screen -->
+        <div id="startScreen" class="overlay">
+            <div class="title">Snake Game</div>
+            <div class="high-score-display">High Score: <span id="startHighScore">0</span></div>
+            <button id="startButton" class="action-button">Start Game</button>
+            <div class="controls">
+                <p>↑↓←→ Arrow Keys to move</p>
+                <p>Space to pause</p>
+            </div>
+        </div>
+
+        <!-- Pause Screen -->
+        <div id="pauseScreen" class="overlay" style="display: none;">
+            <div class="title">Paused</div>
+            <p>Press Space to Continue</p>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="gameOver" class="overlay" style="display: none;">
+            <div class="title">Game Over!</div>
+            <div class="score-summary">
+                <div>Final Score: <span id="finalScore">0</span></div>
+                <div>High Score: <span id="gameOverHighScore">0</span></div>
+            </div>
+            <button id="restartButton" class="action-button">Play Again</button>
+        </div>
+
+        <!-- Win Screen -->
+        <div id="winScreen" class="overlay" style="display: none;">
+            <div class="title">You Win!</div>
+            <div class="score-summary">
+                <div>Final Score: <span id="winFinalScore">0</span></div>
+                <div>High Score: <span id="winHighScore">0</span></div>
+            </div>
+            <button id="winRestartButton" class="action-button">Play Again</button>
         </div>
     </div>
-    <script src="script.js"></script>
+
+    <!-- Debug Panel (hidden by default) -->
+    <div id="debugPanel" class="debug-panel" style="display: none;">
+        <h3>Debug Info</h3>
+        <div id="debugInfo"></div>
+    </div>
+
+    <script src="snake.js"></script>
+    <script src="food.js"></script>
+    <script src="game.js"></script>
+    <script src="main.js"></script>
 </body>
 </html>
