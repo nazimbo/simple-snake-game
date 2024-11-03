@@ -1,0 +1,133 @@
+:root {
+    --primary-color: #4a4a4a;
+    --accent-color: #50C878;
+    --background-color: #f0f0f0;
+    --text-color: #333;
+    --overlay-color: rgba(0, 0, 0, 0.75);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: var(--background-color);
+    font-family: Arial, sans-serif;
+    color: var(--text-color);
+}
+
+.game-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    max-width: 100%;
+}
+
+.game-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    max-width: 400px;
+    padding: 0.5rem;
+}
+
+.score-container {
+    display: flex;
+    gap: 1rem;
+    font-weight: bold;
+}
+
+#gameCanvas {
+    border: 10px solid var(--primary-color);
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+    background-color: white;
+}
+
+.mobile-controls {
+    display: none;
+    gap: 0.5rem;
+}
+
+@media (max-width: 768px) {
+    .mobile-controls {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+}
+
+.control-row {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.mobile-controls button {
+    width: 70px;
+    height: 70px;
+    font-size: 24px;
+    background-color: rgba(255, 255, 255, 0.7);
+    border: 2px solid var(--primary-color);
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: transform 0.1s, background-color 0.2s;
+}
+
+.mobile-controls button:active {
+    background-color: rgba(200, 200, 200, 0.7);
+    transform: translateY(2px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.control-btn {
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+    background-color: var(--accent-color);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.control-btn:hover {
+    background-color: #3da463;
+}
+
+.game-over-screen,
+.pause-screen {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: var(--overlay-color);
+    color: white;
+    padding: 2rem;
+    border-radius: 10px;
+    text-align: center;
+    z-index: 100;
+}
+
+.hidden {
+    display: none;
+}
+
+.stats {
+    margin: 1.5rem 0;
+    font-size: 1.2rem;
+}
+
+.stats p {
+    margin: 0.5rem 0;
+}

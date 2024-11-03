@@ -1,351 +1,53 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Snake Game</title>
-    <link rel="icon" type="image/x-icon" href="https://img.icons8.com/emoji/96/snake-emoji.png" />
-    <style>
-      body {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-        margin: 0;
-        background-color: #f0f0f0;
-        font-family: Arial, sans-serif;
-      }
-      canvas {
-        border: 10px solid #4a4a4a;
-        border-radius: 10px;
-        box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
-      }
-      #mobileControls {
-        display: none;
-        margin-top: 20px;
-      }
-      .controlRow {
-        display: flex;
-        justify-content: center;
-      }
-      #mobileControls button {
-        font-size: 24px;
-        width: 70px;
-        height: 70px;
-        margin: 5px;
-        background-color: rgba(255, 255, 255, 0.7);
-        border: 2px solid #4a4a4a;
-        border-radius: 10px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        touch-action: manipulation;
-      }
-      #mobileControls button:active {
-        background-color: rgba(200, 200, 200, 0.7);
-        transform: translateY(2px);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      }
-    </style>
-  </head>
-  <body>
-    <canvas id="gameCanvas"></canvas>
-    <div id="mobileControls">
-      <div class="controlRow">
-        <button id="upBtn">↑</button>
-      </div>
-      <div class="controlRow">
-        <button id="leftBtn">←</button>
-        <button id="rightBtn">→</button>
-      </div>
-      <div class="controlRow">
-        <button id="downBtn">↓</button>
-      </div>
+    <link rel="icon" type="image/x-icon" href="https://img.icons8.com/emoji/96/snake-emoji.png">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <div class="score-container">
+                <div>Score: <span id="score">0</span></div>
+                <div>High Score: <span id="highScore">0</span></div>
+                <div>Speed: <span id="speed">1</span>x</div>
+            </div>
+            <button id="pauseBtn" class="control-btn">⏸️</button>
+        </div>
+        
+        <canvas id="gameCanvas"></canvas>
+        
+        <div id="mobileControls" class="mobile-controls">
+            <div class="control-row">
+                <button id="upBtn">↑</button>
+            </div>
+            <div class="control-row">
+                <button id="leftBtn">←</button>
+                <button id="rightBtn">→</button>
+            </div>
+            <div class="control-row">
+                <button id="downBtn">↓</button>
+            </div>
+        </div>
+
+        <div id="gameOverScreen" class="game-over-screen hidden">
+            <h2>Game Over!</h2>
+            <div class="stats">
+                <p>Final Score: <span id="finalScore">0</span></p>
+                <p>High Score: <span id="finalHighScore">0</span></p>
+                <p>Top Speed: <span id="finalSpeed">0</span>x</p>
+            </div>
+            <button id="restartBtn" class="control-btn">Play Again</button>
+        </div>
+
+        <div id="pauseScreen" class="pause-screen hidden">
+            <h2>Game Paused</h2>
+            <button id="resumeBtn" class="control-btn">Resume</button>
+        </div>
     </div>
-    <script>
-      // Game constants and variables
-      const canvas = document.getElementById("gameCanvas");
-      const ctx = canvas.getContext("2d");
-      const mobileControls = document.getElementById("mobileControls");
-
-      let gridSize, tileCount;
-      let snake, food, dx, dy, score, highScore, lastMoveTime;
-      const baseInterval = 200;
-      let currentInterval;
-
-      // Resize canvas to fit the screen
-      const resizeCanvas = () => {
-        const maxSize = Math.min(window.innerWidth - 40, window.innerHeight - 40, 400);
-        canvas.width = canvas.height = maxSize;
-        gridSize = Math.floor(maxSize / 20);
-        tileCount = canvas.width / gridSize;
-      };
-
-      // Initialize the game
-      const initGame = () => {
-        snake = [{ x: 10, y: 10 }];
-        food = { x: 15, y: 15 };
-        dx = dy = 0;
-        score = 0;
-        highScore = localStorage.getItem("snakeHighScore") || 0;
-        lastMoveTime = 0;
-        currentInterval = baseInterval;
-      };
-
-      // Calculate move interval based on score
-      const calculateMoveInterval = () => Math.max(baseInterval - score * 5, 50);
-
-      // Main game loop
-      const gameLoop = (currentTime) => {
-        if (checkCollision()) {
-          gameOver();
-          return;
-        }
-
-        requestAnimationFrame(gameLoop);
-
-        if (currentTime - lastMoveTime > currentInterval) {
-          clearCanvas();
-          moveSnake();
-          drawSnake();
-          drawFood();
-          drawScore();
-          lastMoveTime = currentTime;
-        }
-      };
-
-      // Clear canvas and draw background
-      const clearCanvas = () => {
-        const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-        gradient.addColorStop(0, "#87CEEB");
-        gradient.addColorStop(1, "#E0F6FF");
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Draw grid lines
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
-        ctx.lineWidth = 1;
-        for (let i = 0; i <= tileCount; i++) {
-          ctx.beginPath();
-          ctx.moveTo(i * gridSize, 0);
-          ctx.lineTo(i * gridSize, canvas.height);
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.moveTo(0, i * gridSize);
-          ctx.lineTo(canvas.width, i * gridSize);
-          ctx.stroke();
-        }
-      };
-
-      // Move the snake
-      const moveSnake = () => {
-        const head = { x: snake[0].x + dx, y: snake[0].y + dy };
-        snake.unshift(head);
-
-        if (head.x === food.x && head.y === food.y) {
-          score++;
-          if (score > highScore) {
-            highScore = score;
-            localStorage.setItem("snakeHighScore", highScore);
-          }
-          currentInterval = calculateMoveInterval();
-          generateFood();
-        } else {
-          snake.pop();
-        }
-      };
-
-      // Draw the snake
-      const drawSnake = () => {
-        snake.forEach((segment, index) => {
-          const gradient = ctx.createRadialGradient((segment.x + 0.5) * gridSize, (segment.y + 0.5) * gridSize, 2, (segment.x + 0.5) * gridSize, (segment.y + 0.5) * gridSize, gridSize / 2);
-          gradient.addColorStop(0, "#50C878");
-          gradient.addColorStop(1, "#228B22");
-          ctx.fillStyle = gradient;
-
-          ctx.beginPath();
-          ctx.roundRect(segment.x * gridSize, segment.y * gridSize, gridSize - 2, gridSize - 2, 5);
-          ctx.fill();
-
-          // Draw eyes for the snake's head
-          if (index === 0) {
-            ctx.fillStyle = "white";
-            ctx.beginPath();
-            ctx.arc((segment.x + 0.3) * gridSize, (segment.y + 0.3) * gridSize, 3, 0, Math.PI * 2);
-            ctx.arc((segment.x + 0.7) * gridSize, (segment.y + 0.3) * gridSize, 3, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = "black";
-            ctx.beginPath();
-            ctx.arc((segment.x + 0.3) * gridSize, (segment.y + 0.3) * gridSize, 1.5, 0, Math.PI * 2);
-            ctx.arc((segment.x + 0.7) * gridSize, (segment.y + 0.3) * gridSize, 1.5, 0, Math.PI * 2);
-            ctx.fill();
-          }
-        });
-      };
-
-      // Draw the food
-      const drawFood = () => {
-        const gradient = ctx.createRadialGradient((food.x + 0.5) * gridSize, (food.y + 0.5) * gridSize, 2, (food.x + 0.5) * gridSize, (food.y + 0.5) * gridSize, gridSize / 2);
-        gradient.addColorStop(0, "#FF6347");
-        gradient.addColorStop(1, "#8B0000");
-        ctx.fillStyle = gradient;
-
-        ctx.beginPath();
-        ctx.roundRect(food.x * gridSize, food.y * gridSize, gridSize - 2, gridSize - 2, 5);
-        ctx.fill();
-
-        // Draw highlight on the food
-        ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-        ctx.beginPath();
-        ctx.arc((food.x + 0.3) * gridSize, (food.y + 0.3) * gridSize, 3, 0, Math.PI * 2);
-        ctx.fill();
-      };
-
-      // Draw the score and high score
-      const drawScore = () => {
-        ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-        ctx.font = "bold 16px Arial";
-        ctx.textAlign = "left";
-        ctx.textBaseline = "top";
-        ctx.fillText(`Score: ${score}`, 10, 10);
-        ctx.fillText(`High Score: ${highScore}`, 10, 30);
-        ctx.fillText(`Speed: ${Math.round(1000 / currentInterval)}`, 10, 50);
-      };
-
-      // Generate new food position
-      const generateFood = () => {
-        food.x = Math.floor(Math.random() * tileCount);
-        food.y = Math.floor(Math.random() * tileCount);
-      };
-
-      // Check for collisions
-      const checkCollision = () => {
-        const head = snake[0];
-        return head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount || snake.slice(1).some((segment) => segment.x === head.x && segment.y === head.y);
-      };
-
-      // Game over screen
-      const gameOver = () => {
-        ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        ctx.fillStyle = "white";
-        ctx.font = "bold 40px Arial";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText("Game Over!", canvas.width / 2, canvas.height / 2 - 60);
-        ctx.font = "bold 20px Arial";
-        ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 - 20);
-        ctx.fillText(`High Score: ${highScore}`, canvas.width / 2, canvas.height / 2 + 10);
-        ctx.fillText(`Top Speed: ${Math.round(1000 / currentInterval)}`, canvas.width / 2, canvas.height / 2 + 40);
-        ctx.fillText("Press Space or Tap to Restart", canvas.width / 2, canvas.height / 2 + 80);
-      };
-
-      // Restart the game
-      const restartGame = () => {
-        initGame();
-        ctx.textAlign = "left";
-        ctx.textBaseline = "alphabetic";
-        requestAnimationFrame(gameLoop);
-      };
-
-      // Handle keyboard input
-      const handleKeydown = (e) => {
-        switch (e.key) {
-          case "ArrowUp":
-            if (dy === 0) {
-              dx = 0;
-              dy = -1;
-            }
-            break;
-          case "ArrowDown":
-            if (dy === 0) {
-              dx = 0;
-              dy = 1;
-            }
-            break;
-          case "ArrowLeft":
-            if (dx === 0) {
-              dx = -1;
-              dy = 0;
-            }
-            break;
-          case "ArrowRight":
-            if (dx === 0) {
-              dx = 1;
-              dy = 0;
-            }
-            break;
-          case " ":
-            if (checkCollision()) {
-              restartGame();
-            }
-            break;
-        }
-      };
-
-      // Check if the device is mobile
-      const isMobile = () => /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
-      // Set up mobile controls
-      const setupMobileControls = () => {
-        mobileControls.style.display = "block";
-        ["up", "down", "left", "right"].forEach((direction) => {
-          document.getElementById(`${direction}Btn`).addEventListener("touchstart", (e) => {
-            e.preventDefault();
-            if (direction === "up" && dy === 0) {
-              dx = 0;
-              dy = -1;
-            } else if (direction === "down" && dy === 0) {
-              dx = 0;
-              dy = 1;
-            } else if (direction === "left" && dx === 0) {
-              dx = -1;
-              dy = 0;
-            } else if (direction === "right" && dx === 0) {
-              dx = 1;
-              dy = 0;
-            }
-          });
-        });
-
-        canvas.addEventListener("touchstart", (e) => {
-          e.preventDefault();
-          if (checkCollision()) {
-            restartGame();
-          }
-        });
-      };
-
-      // Initialize the game
-      const init = () => {
-        resizeCanvas();
-        initGame();
-        document.addEventListener("keydown", handleKeydown);
-        canvas.addEventListener("click", () => {
-          if (checkCollision()) {
-            restartGame();
-          }
-        });
-
-        if (isMobile()) {
-          setupMobileControls();
-        }
-
-        // Prevent scrolling on mobile devices
-        document.addEventListener(
-          "touchmove",
-          (e) => {
-            e.preventDefault();
-          },
-          { passive: false }
-        );
-
-        window.addEventListener("resize", resizeCanvas);
-        requestAnimationFrame(gameLoop);
-      };
-
-      // Start the game
-      init();
-    </script>
-  </body>
+    <script src="game.js"></script>
+</body>
 </html>
