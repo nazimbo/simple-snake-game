@@ -12,6 +12,11 @@ class VirtualJoystick {
         this.setupEventListeners();
     }
 
+    isOppositeDirection(newDir, currentDir) {
+        return (newDir.x !== 0 && newDir.x === -currentDir.x) || 
+               (newDir.y !== 0 && newDir.y === -currentDir.y);
+    }
+
     setupEventListeners() {
         // Touch events with passive: false to prevent scrolling
         this.canvas.addEventListener('touchstart', (e) => {
@@ -113,8 +118,8 @@ class VirtualJoystick {
                 y: Math.abs(newDir.y) > Math.abs(newDir.x) ? Math.sign(newDir.y) : 0
             };
             
-            // Update game direction if it's a valid move
-            if (this.game.isValidMove(finalDir)) {
+            // Update game direction if it's a valid move (not a 180-degree turn)
+            if (!this.isOppositeDirection(finalDir, this.game.direction)) {
                 this.game.direction = finalDir;
             }
         }
