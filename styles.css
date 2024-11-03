@@ -10,7 +10,7 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    touch-action: manipulation; /* Prevent double-tap zoom on iOS */
+    touch-action: none; /* Prevent default touch actions on the entire game */
 }
 
 body {
@@ -31,10 +31,6 @@ body {
     gap: 1rem;
     padding: 1rem;
     max-width: 100%;
-    user-select: none;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
 }
 
 .game-header {
@@ -44,25 +40,12 @@ body {
     width: 100%;
     max-width: 400px;
     padding: 0.5rem;
-    background-color: rgba(255, 255, 255, 0.9);
-    border-radius: 10px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .score-container {
     display: flex;
     gap: 1rem;
     font-weight: bold;
-    flex-grow: 1;
-    justify-content: center;
-}
-
-.score-container div {
-    background-color: rgba(255, 255, 255, 0.5);
-    padding: 0.5rem;
-    border-radius: 5px;
-    min-width: 80px;
-    text-align: center;
 }
 
 #gameCanvas {
@@ -70,12 +53,7 @@ body {
     border-radius: 10px;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
     background-color: white;
-    touch-action: none;
-    -webkit-user-drag: none;
-    -khtml-user-drag: none;
-    -moz-user-drag: none;
-    -o-user-drag: none;
-    user-drag: none;
+    touch-action: none; /* Prevent default touch actions on canvas */
 }
 
 .control-btn {
@@ -86,36 +64,11 @@ body {
     border: none;
     border-radius: 5px;
     cursor: pointer;
-    transition: all 0.2s ease;
-    min-height: 44px;
-    min-width: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: background-color 0.2s;
 }
 
 .control-btn:hover {
     background-color: #3da463;
-    transform: translateY(-1px);
-    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
-}
-
-.control-btn:active {
-    transform: translateY(0);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-/* Control toggle button styling */
-#controlToggle {
-    font-size: 1.5rem;
-    padding: 0.25rem 0.75rem;
-    background-color: var(--primary-color);
-    margin-right: 1rem;
-}
-
-#controlToggle:active {
-    transform: scale(0.95);
 }
 
 .game-over-screen,
@@ -130,18 +83,6 @@ body {
     border-radius: 10px;
     text-align: center;
     z-index: 100;
-    backdrop-filter: blur(5px);
-    -webkit-backdrop-filter: blur(5px);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    max-width: 90%;
-    width: 300px;
-}
-
-.game-over-screen h2,
-.pause-screen h2 {
-    margin-bottom: 1rem;
-    font-size: 1.8rem;
-    color: var(--accent-color);
 }
 
 .hidden {
@@ -155,102 +96,4 @@ body {
 
 .stats p {
     margin: 0.5rem 0;
-    display: flex;
-    justify-content: space-between;
-    padding: 0.5rem;
-    background-color: rgba(255, 255, 255, 0.1);
-    border-radius: 5px;
-}
-
-/* Touch indicators for mobile */
-.touch-indicator {
-    position: absolute;
-    pointer-events: none;
-    opacity: 0.5;
-    transition: opacity 0.3s ease;
-}
-
-.touch-indicator.active {
-    opacity: 1;
-}
-
-/* Responsive adjustments */
-@media (max-width: 480px) {
-    .game-container {
-        padding: 0.5rem;
-    }
-    
-    .game-header {
-        padding: 0.25rem;
-        flex-wrap: wrap;
-    }
-    
-    .score-container {
-        font-size: 0.9rem;
-        gap: 0.5rem;
-    }
-    
-    .score-container div {
-        min-width: 60px;
-        padding: 0.25rem;
-    }
-    
-    .control-btn {
-        padding: 0.25rem 0.75rem;
-        font-size: 0.9rem;
-    }
-    
-    .game-over-screen,
-    .pause-screen {
-        padding: 1.5rem;
-    }
-    
-    .game-over-screen h2,
-    .pause-screen h2 {
-        font-size: 1.5rem;
-    }
-    
-    .stats {
-        font-size: 1rem;
-    }
-}
-
-/* High contrast mode support */
-@media (prefers-contrast: high) {
-    :root {
-        --primary-color: #000000;
-        --accent-color: #006400;
-        --background-color: #ffffff;
-        --text-color: #000000;
-        --overlay-color: rgba(0, 0, 0, 0.9);
-    }
-    
-    .control-btn {
-        border: 2px solid #000000;
-    }
-}
-
-/* Reduced motion support */
-@media (prefers-reduced-motion: reduce) {
-    * {
-        transition: none !important;
-        animation: none !important;
-    }
-}
-
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-    :root {
-        --background-color: #2a2a2a;
-        --text-color: #ffffff;
-        --primary-color: #3a3a3a;
-    }
-    
-    .game-header {
-        background-color: rgba(0, 0, 0, 0.2);
-    }
-    
-    .score-container div {
-        background-color: rgba(0, 0, 0, 0.3);
-    }
 }
