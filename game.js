@@ -22,14 +22,30 @@ class Game {
         this.speedIncrease = 2;
         this.debug = false;
 
-        // Initialize game objects
-        this.resetGame();
-        this.setupEventListeners();
-        this.updateHighScoreDisplays();
+        // Performance optimizations
+        this.lastFrameTime = 0;
+        this.frameCount = 0;
+        this.lastFpsUpdate = 0;
+        this.fps = 0;
+        this.animationFrameId = null;
+
+        // Create off-screen canvas for the grid
+        this.gridCanvas = document.createElement('canvas');
+        this.gridCanvas.width = canvas.width;
+        this.gridCanvas.height = canvas.height;
+        this.gridCtx = this.gridCanvas.getContext('2d');
 
         // Add food animation properties
         this.foodPulseValue = 0;
         this.foodPulseSpeed = 0.05;
+
+        // Initialize game objects
+        this.resetGame();
+        this.setupEventListeners();
+        this.updateHighScoreDisplays();
+        
+        // Pre-render the grid
+        this.renderGrid();
     }
 
     resetGame() {
@@ -40,6 +56,9 @@ class Game {
         this.gameOver = false;
         this.isPaused = false;
         this.lastRenderTime = 0;
+        this.lastFrameTime = 0;
+        this.frameCount = 0;
+        this.lastFpsUpdate = 0;
         
         // Update UI
         this.updateScores();
@@ -146,6 +165,7 @@ class Game {
         if (!debugInfo) return;
 
         const info = {
+            'FPS': this.fps,
             'Game Speed': this.gameSpeed,
             'Score': this.score,
             'Snake Length': this.snake.getSegments().length,
@@ -157,6 +177,12 @@ class Game {
         debugInfo.textContent = Object.entries(info)
             .map(([key, value]) => `${key}: ${value}`)
             .join('\n');
+    }
+
+    cleanup() {
+        cancelAnimationFrame(this.animationFrameId);
+        this.gridCanvas = null;
+        this.gridCtx = null;
     }
 
     update() {
@@ -211,16 +237,34 @@ class Game {
         if (element) element.textContent = value;
     }
 
-    render() {
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    renderGrid() {
+        this.gridCtx.strokeStyle = '#333';
+        this.gridCtx.lineWidth = 0.5;
+        
+        for (let i = 0; i <= this.width; i++) {
+            this.gridCtx.beginPath();
+            this.gridCtx.moveTo(i * this.gridSize, 0);
+            this.gridCtx.lineTo(i * this.gridSize, this.canvas.height);
+            this.gridCtx.stroke();
+        }
+        
+        for (let i = 0; i <= this.height; i++) {
+            this.gridCtx.beginPath();
+            this.gridCtx.moveTo(0, i * this.gridSize);
+            this.gridCtx.lineTo(this.canvas.width, i * this.gridSize);
+            this.gridCtx.stroke();
+        }
+    }
 
-        // Draw background grid
-        this.drawGrid();
+    render() {
+        // Clear canvas with a single operation
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
-        // Draw food
+        // Draw pre-rendered grid
+        this.ctx.drawImage(this.gridCanvas, 0, 0);
+        
+        // Batch rendering by type
         this.drawFood();
-        
-        // Draw snake
         this.drawSnake();
     }
 
@@ -299,35 +343,31 @@ class Game {
 
     drawSnake() {
         const segments = this.snake.getSegments();
+        const size = this.gridSize;
+        
+        // Reduce state changes by grouping similar operations
+        this.ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+        this.ctx.shadowBlur = 3;
         
         segments.forEach((segment, index) => {
             const isHead = index === 0;
-            const nextSegment = segments[index + 1];
-            const prevSegment = segments[index - 1];
+            const x = segment.x * size;
+            const y = segment.y * size;
             
-            // Calculate gradient colors
+            // Calculate color once
             const hue = 120 + (index * 2);
             this.ctx.fillStyle = `hsl(${hue}, 70%, ${isHead ? 60 : 50}%)`;
             
-            const x = segment.x * this.gridSize;
-            const y = segment.y * this.gridSize;
-            const size = this.gridSize;
-            
-            // Add subtle shadow
-            this.ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
-            this.ctx.shadowBlur = 3;
-            
             if (isHead) {
-                // Draw head with rounded corners
                 this.drawRoundedSegment(x, y, size, 8);
                 this.drawSnakeEyes(x, y);
             } else {
-                // Draw body segments with connection logic
-                this.drawBodySegment(segment, prevSegment, nextSegment, x, y, size);
+                this.drawBodySegment(segment, segments[index - 1], segments[index + 1], x, y, size);
             }
-            
-            this.ctx.shadowBlur = 0;
         });
+        
+        // Reset shadow
+        this.ctx.shadowBlur = 0;
     }
 
     drawBodySegment(segment, prevSegment, nextSegment, x, y, size) {
@@ -427,21 +467,33 @@ class Game {
     }
 
     gameLoop(currentTime) {
-        if (this.gameOver || this.isPaused) return;
-
-        if (this.lastRenderTime === 0) {
-            this.lastRenderTime = currentTime;
+        if (this.gameOver || this.isPaused) {
+            cancelAnimationFrame(this.animationFrameId);
+            return;
         }
 
-        const elapsed = currentTime - this.lastRenderTime;
+        // Calculate FPS
+        this.frameCount++;
+        if (currentTime - this.lastFpsUpdate >= 1000) {
+            this.fps = this.frameCount;
+            this.frameCount = 0;
+            this.lastFpsUpdate = currentTime;
+            if (this.debug) {
+                this.updateDebugInfo();
+            }
+        }
 
-        if (elapsed > this.gameSpeed) {
+        // Calculate elapsed time since last frame
+        const deltaTime = currentTime - this.lastFrameTime;
+        
+        // Update game state based on accumulated time
+        if (deltaTime >= this.gameSpeed) {
             this.update();
             this.render();
-            this.lastRenderTime = currentTime;
+            this.lastFrameTime = currentTime;
         }
 
-        this.animationFrame = requestAnimationFrame((time) => this.gameLoop(time));
+        this.animationFrameId = requestAnimationFrame((time) => this.gameLoop(time));
     }
 
     endGame() {
