@@ -35,9 +35,9 @@ class Game {
         this.gridCanvas.height = canvas.height;
         this.gridCtx = this.gridCanvas.getContext('2d');
 
-        // Add food animation properties
-        this.foodPulseValue = 0;
-        this.foodPulseSpeed = 0.05;
+        // Visual effects
+        this.particles = [];
+        this.scorePopups = [];
 
         // Initialize game objects
         this.resetGame();
@@ -59,7 +59,9 @@ class Game {
         this.lastFrameTime = 0;
         this.frameCount = 0;
         this.lastFpsUpdate = 0;
-        
+        this.particles = [];
+        this.scorePopups = [];
+
         // Update UI
         this.updateScores();
         this.hideAllScreens();
@@ -200,10 +202,13 @@ class Game {
         const foodPos = this.food.getPosition();
         
         if (head.x === foodPos.x && head.y === foodPos.y) {
+            // Burst of particles + floating score at the food's location
+            this.spawnFoodEffects(foodPos.x, foodPos.y, this.food.getValue());
+
             // Increase score
             this.score += this.food.getValue();
             this.updateScores();
-            
+
             // Grow snake
             this.snake.grow();
             
@@ -238,134 +243,145 @@ class Game {
     }
 
     renderGrid() {
-        this.gridCtx.strokeStyle = '#333';
-        this.gridCtx.lineWidth = 0.5;
-        
+        const g = this.gridCtx;
+        g.clearRect(0, 0, this.gridCanvas.width, this.gridCanvas.height);
+
+        // Faint neon grid lines
+        g.strokeStyle = 'rgba(0, 240, 255, 0.06)';
+        g.lineWidth = 1;
         for (let i = 0; i <= this.width; i++) {
-            this.gridCtx.beginPath();
-            this.gridCtx.moveTo(i * this.gridSize, 0);
-            this.gridCtx.lineTo(i * this.gridSize, this.canvas.height);
-            this.gridCtx.stroke();
+            g.beginPath();
+            g.moveTo(i * this.gridSize, 0);
+            g.lineTo(i * this.gridSize, this.canvas.height);
+            g.stroke();
         }
-        
         for (let i = 0; i <= this.height; i++) {
-            this.gridCtx.beginPath();
-            this.gridCtx.moveTo(0, i * this.gridSize);
-            this.gridCtx.lineTo(this.canvas.width, i * this.gridSize);
-            this.gridCtx.stroke();
+            g.beginPath();
+            g.moveTo(0, i * this.gridSize);
+            g.lineTo(this.canvas.width, i * this.gridSize);
+            g.stroke();
+        }
+
+        // Glowing dots at the intersections
+        g.fillStyle = 'rgba(0, 240, 255, 0.18)';
+        for (let i = 0; i <= this.width; i++) {
+            for (let j = 0; j <= this.height; j++) {
+                g.beginPath();
+                g.arc(i * this.gridSize, j * this.gridSize, 0.9, 0, 2 * Math.PI);
+                g.fill();
+            }
         }
     }
 
     render() {
-        // Clear canvas with a single operation
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        
-        // Draw pre-rendered grid
+
+        // Layered scene: animated background → grid → food → snake → effects
+        this.drawBackground();
         this.ctx.drawImage(this.gridCanvas, 0, 0);
-        
-        // Batch rendering by type
         this.drawFood();
         this.drawSnake();
+        this.drawEffects();
     }
 
-    drawGrid() {
-        this.ctx.strokeStyle = '#333';
-        this.ctx.lineWidth = 0.5;
-        
-        for (let i = 0; i <= this.width; i++) {
-            this.ctx.beginPath();
-            this.ctx.moveTo(i * this.gridSize, 0);
-            this.ctx.lineTo(i * this.gridSize, this.canvas.height);
-            this.ctx.stroke();
-        }
-        
-        for (let i = 0; i <= this.height; i++) {
-            this.ctx.beginPath();
-            this.ctx.moveTo(0, i * this.gridSize);
-            this.ctx.lineTo(this.canvas.width, i * this.gridSize);
-            this.ctx.stroke();
-        }
+    drawBackground() {
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+        const t = performance.now() / 1000;
+
+        // Deep synthwave gradient base
+        const base = this.ctx.createLinearGradient(0, 0, w, h);
+        base.addColorStop(0, '#0a0524');
+        base.addColorStop(1, '#15093a');
+        this.ctx.fillStyle = base;
+        this.ctx.fillRect(0, 0, w, h);
+
+        // Slowly drifting glow blobs for depth
+        const blob = (x, y, r, color) => {
+            const grad = this.ctx.createRadialGradient(x, y, 0, x, y, r);
+            grad.addColorStop(0, color);
+            grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            this.ctx.fillStyle = grad;
+            this.ctx.fillRect(0, 0, w, h);
+        };
+        blob(w * 0.3 + Math.sin(t * 0.4) * 40, h * 0.25 + Math.cos(t * 0.3) * 40, 190, 'rgba(0, 200, 255, 0.10)');
+        blob(w * 0.75 + Math.cos(t * 0.35) * 40, h * 0.8 + Math.sin(t * 0.45) * 40, 210, 'rgba(255, 60, 200, 0.10)');
     }
 
     drawFood() {
         const foodPos = this.food.getPosition();
-        
-        // Update pulse animation
-        this.foodPulseValue += this.foodPulseSpeed;
-        const pulseScale = 1 + Math.sin(this.foodPulseValue) * 0.1;
-        
-        // Base food color
-        const baseRadius = (this.gridSize / 2.5) * pulseScale;
-        
-        // Draw outer glow
-        const gradient = this.ctx.createRadialGradient(
-            (foodPos.x + 0.5) * this.gridSize,
-            (foodPos.y + 0.5) * this.gridSize,
-            baseRadius * 0.5,
-            (foodPos.x + 0.5) * this.gridSize,
-            (foodPos.y + 0.5) * this.gridSize,
-            baseRadius * 1.5
-        );
-        
-        gradient.addColorStop(0, '#ff0000');
-        gradient.addColorStop(0.6, 'rgba(255, 0, 0, 0.5)');
-        gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
-        
-        this.ctx.fillStyle = gradient;
-        this.ctx.shadowColor = '#ff0000';
-        this.ctx.shadowBlur = 15;
-        
-        // Draw main food circle
+        const t = performance.now() / 1000;
+        const cx = (foodPos.x + 0.5) * this.gridSize;
+        const cy = (foodPos.y + 0.5) * this.gridSize;
+        const pulse = 1 + Math.sin(t * 5) * 0.12;
+        const baseRadius = (this.gridSize / 2.6) * pulse;
+
+        // Outer glow halo
+        const glow = this.ctx.createRadialGradient(cx, cy, baseRadius * 0.2, cx, cy, baseRadius * 2.2);
+        glow.addColorStop(0, 'rgba(255, 170, 60, 0.9)');
+        glow.addColorStop(0.5, 'rgba(255, 90, 160, 0.35)');
+        glow.addColorStop(1, 'rgba(255, 90, 160, 0)');
+        this.ctx.fillStyle = glow;
         this.ctx.beginPath();
-        this.ctx.arc(
-            (foodPos.x + 0.5) * this.gridSize,
-            (foodPos.y + 0.5) * this.gridSize,
-            baseRadius,
-            0,
-            2 * Math.PI
-        );
+        this.ctx.arc(cx, cy, baseRadius * 2.2, 0, 2 * Math.PI);
         this.ctx.fill();
-        
-        // Add shine effect
-        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+
+        // Glowing core orb
+        const core = this.ctx.createRadialGradient(
+            cx - baseRadius * 0.3, cy - baseRadius * 0.3, baseRadius * 0.1,
+            cx, cy, baseRadius
+        );
+        core.addColorStop(0, '#fff3d6');
+        core.addColorStop(0.4, '#ffd24a');
+        core.addColorStop(1, '#ff7a3d');
+        this.ctx.fillStyle = core;
+        this.ctx.shadowColor = '#ff9a3d';
+        this.ctx.shadowBlur = 18;
         this.ctx.beginPath();
-        this.ctx.arc(
-            (foodPos.x + 0.4) * this.gridSize,
-            (foodPos.y + 0.4) * this.gridSize,
-            baseRadius * 0.2,
-            0,
-            2 * Math.PI
-        );
+        this.ctx.arc(cx, cy, baseRadius, 0, 2 * Math.PI);
         this.ctx.fill();
-        
         this.ctx.shadowBlur = 0;
+
+        // Orbiting sparkle
+        const orbit = baseRadius * 1.4;
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        this.ctx.beginPath();
+        this.ctx.arc(cx + Math.cos(t * 3) * orbit, cy + Math.sin(t * 3) * orbit, 1.6, 0, 2 * Math.PI);
+        this.ctx.fill();
+
+        // Specular shine
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        this.ctx.beginPath();
+        this.ctx.arc(cx - baseRadius * 0.3, cy - baseRadius * 0.3, baseRadius * 0.22, 0, 2 * Math.PI);
+        this.ctx.fill();
     }
 
     drawSnake() {
         const segments = this.snake.getSegments();
         const size = this.gridSize;
-        
-        // Reduce state changes by grouping similar operations
-        this.ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
-        this.ctx.shadowBlur = 3;
-        
+        const len = segments.length;
+
         segments.forEach((segment, index) => {
             const isHead = index === 0;
             const x = segment.x * size;
             const y = segment.y * size;
-            
-            // Calculate color once
-            const hue = 120 + (index * 2);
-            this.ctx.fillStyle = `hsl(${hue}, 70%, ${isHead ? 60 : 50}%)`;
-            
+
+            // Hue glides from cyan at the head to magenta along the tail
+            const ratio = len > 1 ? index / (len - 1) : 0;
+            const hue = 185 + ratio * 110;
+            this.ctx.fillStyle = `hsl(${hue}, 95%, ${isHead ? 65 : 55}%)`;
+            this.ctx.shadowColor = `hsla(${hue}, 95%, 60%, 0.9)`;
+            this.ctx.shadowBlur = isHead ? 16 : 10;
+
             if (isHead) {
                 this.drawRoundedSegment(x, y, size, 8);
+                this.ctx.shadowBlur = 0;
                 this.drawSnakeEyes(x, y);
             } else {
                 this.drawBodySegment(segment, segments[index - 1], segments[index + 1], x, y, size);
             }
         });
-        
+
         // Reset shadow
         this.ctx.shadowBlur = 0;
     }
@@ -466,6 +482,74 @@ class Game {
         }
     }
 
+    spawnFoodEffects(gridX, gridY, value) {
+        const cx = (gridX + 0.5) * this.gridSize;
+        const cy = (gridY + 0.5) * this.gridSize;
+        const count = 18;
+        for (let i = 0; i < count; i++) {
+            const angle = (2 * Math.PI * i) / count + Math.random() * 0.4;
+            const speed = 1.5 + Math.random() * 2.5;
+            this.particles.push({
+                x: cx,
+                y: cy,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                life: 1,
+                decay: 0.02 + Math.random() * 0.02,
+                size: 2 + Math.random() * 3,
+                hue: 30 + Math.random() * 300 // warm-to-magenta confetti
+            });
+        }
+        this.scorePopups.push({ x: cx, y: cy, life: 1, value });
+    }
+
+    updateEffects() {
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            const p = this.particles[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vx *= 0.92;
+            p.vy *= 0.92;
+            p.life -= p.decay;
+            if (p.life <= 0) this.particles.splice(i, 1);
+        }
+        for (let i = this.scorePopups.length - 1; i >= 0; i--) {
+            const s = this.scorePopups[i];
+            s.y -= 0.6;
+            s.life -= 0.02;
+            if (s.life <= 0) this.scorePopups.splice(i, 1);
+        }
+    }
+
+    drawEffects() {
+        // Particle burst
+        this.particles.forEach(p => {
+            this.ctx.globalAlpha = Math.max(0, p.life);
+            this.ctx.fillStyle = `hsl(${p.hue}, 100%, 65%)`;
+            this.ctx.shadowColor = this.ctx.fillStyle;
+            this.ctx.shadowBlur = 8;
+            this.ctx.beginPath();
+            this.ctx.arc(p.x, p.y, Math.max(0.1, p.size * p.life), 0, 2 * Math.PI);
+            this.ctx.fill();
+        });
+        this.ctx.globalAlpha = 1;
+        this.ctx.shadowBlur = 0;
+
+        // Floating "+score" popups
+        this.scorePopups.forEach(s => {
+            this.ctx.globalAlpha = Math.max(0, s.life);
+            this.ctx.font = 'bold 16px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillStyle = '#fff';
+            this.ctx.shadowColor = '#ff2bd6';
+            this.ctx.shadowBlur = 10;
+            this.ctx.fillText(`+${s.value}`, s.x, s.y);
+        });
+        this.ctx.globalAlpha = 1;
+        this.ctx.shadowBlur = 0;
+        this.ctx.textAlign = 'start';
+    }
+
     gameLoop(currentTime) {
         if (this.gameOver || this.isPaused) {
             cancelAnimationFrame(this.animationFrameId);
@@ -483,15 +567,16 @@ class Game {
             }
         }
 
-        // Calculate elapsed time since last frame
+        // Fixed-timestep: game logic only advances once gameSpeed has elapsed...
         const deltaTime = currentTime - this.lastFrameTime;
-        
-        // Update game state based on accumulated time
         if (deltaTime >= this.gameSpeed) {
             this.update();
-            this.render();
             this.lastFrameTime = currentTime;
         }
+
+        // ...but effects and rendering run every frame for smooth animation.
+        this.updateEffects();
+        this.render();
 
         this.animationFrameId = requestAnimationFrame((time) => this.gameLoop(time));
     }
