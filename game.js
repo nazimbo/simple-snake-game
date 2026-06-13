@@ -108,6 +108,12 @@ class Game {
         if (restartButton) restartButton.addEventListener('click', () => this.restart());
         if (winRestartButton) winRestartButton.addEventListener('click', () => this.restart());
 
+        // Exit / back-to-menu controls (in-game and on each end screen)
+        ['exitButton', 'pauseMenuButton', 'gameOverMenuButton', 'winMenuButton'].forEach(id => {
+            const button = document.getElementById(id);
+            if (button) button.addEventListener('click', () => this.quitToMenu());
+        });
+
         // Debug toggle (Ctrl + D)
         document.addEventListener('keydown', (e) => {
             if (e.ctrlKey && e.key === 'd') {
@@ -220,6 +226,25 @@ class Game {
         this.hideAllScreens();
         this.resetGame();
         this.gameLoop(0);
+    }
+
+    quitToMenu() {
+        cancelAnimationFrame(this.animationFrameId);
+
+        // Reset back to a fresh, unstarted game and show the start screen
+        this.gameStarted = false;
+        this.resetGame();
+        this.updateHighScoreDisplays();
+        this.updateThemePickerSelection();
+
+        try {
+            this.render();
+        } catch (e) {
+            console.error('Render on quit failed:', e);
+        }
+
+        const startScreen = document.getElementById('startScreen');
+        if (startScreen) startScreen.style.display = 'flex';
     }
 
     togglePause() {

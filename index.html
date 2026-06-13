@@ -10,7 +10,10 @@
     <div class="game-container">
         <div class="score-container">
             <div class="score">Score: <span id="score">0</span></div>
-            <div class="high-score">High Score: <span id="highScore">0</span></div>
+            <div class="score-right">
+                <div class="high-score">High Score: <span id="highScore">0</span></div>
+                <button id="exitButton" class="exit-button" type="button" aria-label="Exit to menu" title="Exit to menu">Menu</button>
+            </div>
         </div>
 
         <canvas id="gameCanvas" width="400" height="400"></canvas>
@@ -34,6 +37,7 @@
         <div id="pauseScreen" class="overlay" style="display: none;">
             <div class="title">Paused</div>
             <p>Press Space to Continue</p>
+            <button id="pauseMenuButton" class="action-button secondary">Main Menu</button>
         </div>
 
         <!-- Game Over Screen -->
@@ -44,6 +48,7 @@
                 <div>High Score: <span id="gameOverHighScore">0</span></div>
             </div>
             <button id="restartButton" class="action-button">Play Again</button>
+            <button id="gameOverMenuButton" class="action-button secondary">Main Menu</button>
         </div>
 
         <!-- Win Screen -->
@@ -54,6 +59,7 @@
                 <div>High Score: <span id="winHighScore">0</span></div>
             </div>
             <button id="winRestartButton" class="action-button">Play Again</button>
+            <button id="winMenuButton" class="action-button secondary">Main Menu</button>
         </div>
     </div>
 

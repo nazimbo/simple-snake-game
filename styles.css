@@ -64,6 +64,31 @@ body {
 .score span { color: var(--accent); }
 .high-score span { color: var(--food); }
 
+.score-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.exit-button {
+    padding: 5px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.exit-button:hover {
+    color: var(--text);
+    border-color: var(--accent);
+}
+
 canvas {
     width: 100%;
     height: auto;
@@ -148,6 +173,20 @@ canvas {
 
 .action-button:active {
     transform: translateY(0);
+}
+
+/* Muted secondary button (e.g. Main Menu) */
+.action-button.secondary {
+    margin-top: 12px;
+    background: transparent;
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+}
+
+.action-button.secondary:hover {
+    filter: none;
+    color: var(--text);
+    border-color: var(--accent);
 }
 
 .debug-panel {
