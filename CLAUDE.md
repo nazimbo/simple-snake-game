@@ -52,7 +52,8 @@ Game state lives as booleans/numbers on the `Game` instance (`gameStarted`, `gam
 
 - **No frameworks or dependencies** — keep it that way unless explicitly asked. Use plain DOM APIs and Canvas.
 - When adding a new class file, add a `<script>` tag in `index.html` in the correct load order and (if it's a cached asset) to the `ASSETS` list in `service-worker.js`.
-- Bump `CACHE_NAME` in `service-worker.js` (currently `snake-game-v4`) whenever cached assets change, or clients will keep serving the old cache.
+- Bump `CACHE_NAME` in `service-worker.js` (currently `snake-game-v5`) whenever cached assets change, or clients will keep serving the old cache.
+- `game.js` polyfills `CanvasRenderingContext2D.roundRect` (absent on Safari < 16); the rounded snake segments depend on it. Keep canvas APIs Safari-safe and pair every `backdrop-filter` with a `-webkit-` prefix.
 - DOM lookups are defensively guarded (`if (element)` / `if (button)`) throughout — follow this pattern since scripts run against a fixed HTML structure.
 - The board is sized as `canvas dimension / gridSize` (400 / 20 = 20×20 cells). Changing `gridSize` or the canvas `width`/`height` in `index.html` reshapes the grid.
 - A few teardown/pause paths call `cancelAnimationFrame(this.animationFrame)`, but the active loop handle is `this.animationFrameId`; the loop's own guard (`if (this.gameOver || this.isPaused)`) is what actually stops it. Prefer `this.animationFrameId` when touching this code.

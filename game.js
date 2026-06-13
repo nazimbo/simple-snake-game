@@ -1,3 +1,20 @@
+// Polyfill for CanvasRenderingContext2D.roundRect (Safari < 16, older browsers).
+// Without it the snake's rounded segments throw, which previously aborted the
+// whole game init — including the start screen and its theme picker.
+if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D.prototype.roundRect) {
+    CanvasRenderingContext2D.prototype.roundRect = function (x, y, width, height, radii) {
+        let r = typeof radii === 'number' ? radii : (Array.isArray(radii) && radii.length ? radii[0] : 0);
+        r = Math.min(r, Math.abs(width) / 2, Math.abs(height) / 2);
+        this.moveTo(x + r, y);
+        this.arcTo(x + width, y, x + width, y + height, r);
+        this.arcTo(x + width, y + height, x, y + height, r);
+        this.arcTo(x, y + height, x, y, r);
+        this.arcTo(x, y, x + width, y, r);
+        this.closePath();
+        return this;
+    };
+}
+
 class Game {
     constructor(canvas) {
         if (!canvas || !canvas.getContext) {
@@ -49,9 +66,14 @@ class Game {
         this.setupThemePicker();
         this.updateHighScoreDisplays();
 
-        // Pre-render the grid and paint one frame (visible behind the start overlay)
-        this.renderGrid();
-        this.render();
+        // Pre-render the grid and paint one frame (visible behind the start overlay).
+        // Guarded so a rendering quirk can never block the start screen / theme picker.
+        try {
+            this.renderGrid();
+            this.render();
+        } catch (e) {
+            console.error('Initial render failed:', e);
+        }
     }
 
     resetGame() {
