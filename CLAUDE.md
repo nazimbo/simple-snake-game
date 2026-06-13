@@ -23,12 +23,14 @@ There is no lint or test command. Verify changes by playing the game in the brow
 Classes are plain global scripts (no modules, no `import`/`export`). They attach to the global scope and `index.html` loads them in dependency order — **this order matters**:
 
 ```
-snake.js  →  food.js  →  game.js  →  main.js
+snake.js  →  food.js  →  themes.js  →  game.js  →  main.js
 ```
 
 - **`Snake` (`snake.js`)** — owns the segment list, movement, and self-collision. Movement is **toroidal**: the head wraps around board edges via `(pos + dir + size) % size` rather than colliding with walls. Self-collision is detected with a `collisionMap` (a `Map` keyed by `"x,y"` strings) rebuilt each tick. Direction changes are rejected if they reverse the current direction or arrive faster than `moveDelay` (debounce), which is why `setDirection` takes a timestamp.
 
 - **`Food` (`food.js`)** — holds position and score value. `spawn()` builds the list of all cells not occupied by the snake and picks one at random. It **returns `false` when no cell is free**, which is the game's win condition (board fully filled).
+
+- **`themes.js`** — defines the global `THEMES` array and `ThemeManager`. Each theme has a `ui` half (CSS custom properties applied to `:root` via `ThemeManager.applyUI` — page chrome, overlays, buttons) and a `board` half (tokens the canvas renderer reads — background gradient/vignette, grid style, snake HSL gradient + glow, food, particle colour). Snake colour is expressed in HSL so one token set covers both flat-monochrome and multi-hue gradients (`hueHead → hueTail`). The chosen theme persists in `localStorage` under `snakeTheme`. Adding a theme is purely data: append an entry to `THEMES`.
 
 - **`Game` (`game.js`)** — the orchestrator. Holds canvas/context, game state, scoring, the main loop, and all rendering. It instantiates `Snake` and `Food`, runs collision checks, and drives every screen transition. This is the largest file and where most gameplay changes go.
 
@@ -40,7 +42,7 @@ snake.js  →  food.js  →  game.js  →  main.js
 
 ### Rendering
 
-`render()` clears the canvas, blits a **pre-rendered grid** from an off-screen canvas (`gridCanvas`, drawn once in `renderGrid()`), then draws food and snake. Food has a pulsing radial-gradient glow; snake segments use an HSL hue that shifts along the body, with rounded corners and connection rectangles to smooth joints, plus eyes drawn on the head oriented to the current direction.
+`render()` runs **every animation frame** (decoupled from the fixed-timestep `update()`, so effects stay smooth even when game logic ticks slowly): it draws the background, blits the **pre-rendered grid** from an off-screen canvas (`gridCanvas`, rebuilt by `renderGrid()` whenever the theme changes), then draws food, snake, and effects. All colours come from `this.activeTheme.board`. The snake uses an HSL gradient along the body with rounded corners, connection rectangles to smooth joints, and direction-oriented eyes. Eating food spawns an expanding ring + a few particles (`spawnFoodEffects` → `updateEffects`/`drawEffects`), all tinted by the theme's effect colour.
 
 ### State & screens
 
@@ -50,7 +52,7 @@ Game state lives as booleans/numbers on the `Game` instance (`gameStarted`, `gam
 
 - **No frameworks or dependencies** — keep it that way unless explicitly asked. Use plain DOM APIs and Canvas.
 - When adding a new class file, add a `<script>` tag in `index.html` in the correct load order and (if it's a cached asset) to the `ASSETS` list in `service-worker.js`.
-- Bump `CACHE_NAME` in `service-worker.js` (e.g. `snake-game-v1` → `v2`) whenever cached assets change, or clients will keep serving the old cache.
+- Bump `CACHE_NAME` in `service-worker.js` (currently `snake-game-v4`) whenever cached assets change, or clients will keep serving the old cache.
 - DOM lookups are defensively guarded (`if (element)` / `if (button)`) throughout — follow this pattern since scripts run against a fixed HTML structure.
 - The board is sized as `canvas dimension / gridSize` (400 / 20 = 20×20 cells). Changing `gridSize` or the canvas `width`/`height` in `index.html` reshapes the grid.
 - A few teardown/pause paths call `cancelAnimationFrame(this.animationFrame)`, but the active loop handle is `this.animationFrameId`; the loop's own guard (`if (this.gameOver || this.isPaused)`) is what actually stops it. Prefer `this.animationFrameId` when touching this code.

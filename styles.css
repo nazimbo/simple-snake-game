@@ -6,6 +6,9 @@
     --text-dim: #8b8e99;
     --accent: #79b894;
     --food: #e0a16b;
+    --overlay: rgba(21, 22, 28, 0.82);
+    --btn-text: #10221a;
+    --font: 'Segoe UI', 'Trebuchet MS', system-ui, sans-serif;
 }
 
 * {
@@ -21,9 +24,10 @@ body {
     min-height: 100vh;
     padding: 16px;
     background: var(--bg);
-    font-family: 'Segoe UI', 'Trebuchet MS', system-ui, sans-serif;
+    font-family: var(--font);
     color: var(--text);
     -webkit-font-smoothing: antialiased;
+    transition: background 0.3s ease, color 0.3s ease;
 }
 
 .game-container {
@@ -80,7 +84,7 @@ canvas {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    background: rgba(21, 22, 28, 0.82);
+    background: var(--overlay);
     backdrop-filter: blur(6px);
     border-radius: 16px;
     color: var(--text);
@@ -131,13 +135,13 @@ canvas {
     background: var(--accent);
     border: none;
     border-radius: 10px;
-    color: #10221a;
+    color: var(--btn-text);
     cursor: pointer;
-    transition: background 0.18s ease, transform 0.18s ease;
+    transition: background 0.18s ease, transform 0.18s ease, filter 0.18s ease;
 }
 
 .action-button:hover {
-    background: #8cc6a4;
+    filter: brightness(1.08);
     transform: translateY(-1px);
 }
 
@@ -168,6 +172,65 @@ canvas {
 }
 
 #debugInfo { white-space: pre-wrap; color: var(--text-dim); }
+
+/* Theme picker */
+.theme-section {
+    margin-top: 22px;
+}
+
+.theme-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+}
+
+.theme-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    max-width: 320px;
+}
+
+.theme-swatch {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 11px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.theme-swatch:hover {
+    transform: translateY(-1px);
+}
+
+.theme-swatch.active {
+    box-shadow: 0 0 0 2px var(--accent);
+}
+
+.sw-dots {
+    display: inline-flex;
+    gap: 3px;
+}
+
+.sw-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15);
+}
+
+.sw-label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
 
 /* Gentle entrance for overlay contents */
 @keyframes slideIn {

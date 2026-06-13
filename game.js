@@ -39,13 +39,19 @@ class Game {
         this.particles = [];
         this.ripples = [];
 
+        // Active theme (persisted) — drives both canvas colours and CSS variables
+        this.activeTheme = ThemeManager.getInitial();
+        ThemeManager.applyUI(this.activeTheme.ui);
+
         // Initialize game objects
         this.resetGame();
         this.setupEventListeners();
+        this.setupThemePicker();
         this.updateHighScoreDisplays();
-        
-        // Pre-render the grid
+
+        // Pre-render the grid and paint one frame (visible behind the start overlay)
         this.renderGrid();
+        this.render();
     }
 
     resetGame() {
@@ -87,6 +93,64 @@ class Game {
                 this.toggleDebug();
             }
         });
+    }
+
+    setupThemePicker() {
+        const container = document.getElementById('themePicker');
+        if (!container || typeof THEMES === 'undefined') return;
+
+        container.innerHTML = '';
+        THEMES.forEach(theme => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'theme-swatch';
+            btn.dataset.themeId = theme.id;
+            btn.setAttribute('aria-label', theme.label);
+            btn.style.background = theme.ui.bg;
+            btn.style.borderColor = theme.ui.border;
+
+            const dots = document.createElement('span');
+            dots.className = 'sw-dots';
+            const snakeDot = document.createElement('span');
+            snakeDot.className = 'sw-dot';
+            snakeDot.style.background = `hsl(${theme.board.snake.hueHead}, ${theme.board.snake.sat}%, ${theme.board.snake.lightHead}%)`;
+            const foodDot = document.createElement('span');
+            foodDot.className = 'sw-dot';
+            foodDot.style.background = theme.board.food.color;
+            dots.appendChild(snakeDot);
+            dots.appendChild(foodDot);
+
+            const label = document.createElement('span');
+            label.className = 'sw-label';
+            label.textContent = theme.label;
+            label.style.color = theme.ui.text;
+
+            btn.appendChild(dots);
+            btn.appendChild(label);
+            btn.addEventListener('click', () => this.setTheme(theme));
+            container.appendChild(btn);
+        });
+
+        this.updateThemePickerSelection();
+    }
+
+    updateThemePickerSelection() {
+        const container = document.getElementById('themePicker');
+        if (!container) return;
+        container.querySelectorAll('.theme-swatch').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.themeId === this.activeTheme.id);
+        });
+    }
+
+    setTheme(theme) {
+        this.activeTheme = theme;
+        ThemeManager.applyUI(theme.ui);
+        ThemeManager.store(theme.id);
+        this.updateThemePickerSelection();
+
+        // Rebuild the cached grid and repaint so the change is visible immediately
+        this.renderGrid();
+        this.render();
     }
 
     handleKeyPress(e) {
@@ -246,8 +310,23 @@ class Game {
         const g = this.gridCtx;
         g.clearRect(0, 0, this.gridCanvas.width, this.gridCanvas.height);
 
-        // Barely-there grid for spatial reference
-        g.strokeStyle = 'rgba(255, 255, 255, 0.035)';
+        const grid = this.activeTheme.board.grid;
+        if (grid.style === 'none') return;
+
+        if (grid.style === 'dots') {
+            g.fillStyle = grid.color;
+            for (let i = 0; i <= this.width; i++) {
+                for (let j = 0; j <= this.height; j++) {
+                    g.beginPath();
+                    g.arc(i * this.gridSize, j * this.gridSize, 0.9, 0, 2 * Math.PI);
+                    g.fill();
+                }
+            }
+            return;
+        }
+
+        // Default: faint lines
+        g.strokeStyle = grid.color;
         g.lineWidth = 1;
         for (let i = 1; i < this.width; i++) {
             g.beginPath();
@@ -277,70 +356,94 @@ class Game {
     drawBackground() {
         const w = this.canvas.width;
         const h = this.canvas.height;
+        const [top, bottom] = this.activeTheme.board.bg;
 
-        // Calm, flat base with a soft vignette for depth
-        this.ctx.fillStyle = '#15161c';
+        if (top === bottom) {
+            this.ctx.fillStyle = top;
+        } else {
+            const grad = this.ctx.createLinearGradient(0, 0, 0, h);
+            grad.addColorStop(0, top);
+            grad.addColorStop(1, bottom);
+            this.ctx.fillStyle = grad;
+        }
         this.ctx.fillRect(0, 0, w, h);
 
-        const vignette = this.ctx.createRadialGradient(w / 2, h / 2, h * 0.25, w / 2, h / 2, h * 0.75);
-        vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
-        vignette.addColorStop(1, 'rgba(0, 0, 0, 0.35)');
-        this.ctx.fillStyle = vignette;
-        this.ctx.fillRect(0, 0, w, h);
+        const strength = this.activeTheme.board.vignette;
+        if (strength > 0) {
+            const vignette = this.ctx.createRadialGradient(w / 2, h / 2, h * 0.25, w / 2, h / 2, h * 0.75);
+            vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
+            vignette.addColorStop(1, `rgba(0, 0, 0, ${strength})`);
+            this.ctx.fillStyle = vignette;
+            this.ctx.fillRect(0, 0, w, h);
+        }
     }
 
     drawFood() {
+        const f = this.activeTheme.board.food;
         const foodPos = this.food.getPosition();
         const t = performance.now() / 1000;
         const cx = (foodPos.x + 0.5) * this.gridSize;
         const cy = (foodPos.y + 0.5) * this.gridSize;
-        const pulse = 1 + Math.sin(t * 3) * 0.06;
+        const pulse = 1 + Math.sin(t * 4) * f.pulse;
         const radius = (this.gridSize / 2.8) * pulse;
 
-        // Soft single-colour body with a gentle shadow (no neon halo)
+        // Body, with optional glow halo
         this.ctx.save();
-        this.ctx.shadowColor = 'rgba(224, 161, 107, 0.45)';
-        this.ctx.shadowBlur = 10;
-        this.ctx.fillStyle = '#e0a16b';
+        if (f.glowBlur > 0) {
+            this.ctx.shadowColor = f.glow;
+            this.ctx.shadowBlur = f.glowBlur;
+        }
+        this.ctx.fillStyle = f.color;
         this.ctx.beginPath();
         this.ctx.arc(cx, cy, radius, 0, 2 * Math.PI);
         this.ctx.fill();
         this.ctx.restore();
 
-        // Subtle highlight
-        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
-        this.ctx.beginPath();
-        this.ctx.arc(cx - radius * 0.3, cy - radius * 0.3, radius * 0.3, 0, 2 * Math.PI);
-        this.ctx.fill();
+        // Orbiting sparkle (flashier themes only)
+        if (f.sparkle) {
+            const orbit = radius * 1.4;
+            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            this.ctx.beginPath();
+            this.ctx.arc(cx + Math.cos(t * 3) * orbit, cy + Math.sin(t * 3) * orbit, 1.6, 0, 2 * Math.PI);
+            this.ctx.fill();
+        }
+
+        // Specular highlight
+        if (f.highlight) {
+            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+            this.ctx.beginPath();
+            this.ctx.arc(cx - radius * 0.3, cy - radius * 0.3, radius * 0.3, 0, 2 * Math.PI);
+            this.ctx.fill();
+        }
     }
 
     drawSnake() {
+        const s = this.activeTheme.board.snake;
         const segments = this.snake.getSegments();
         const size = this.gridSize;
         const len = segments.length;
 
-        // Soft drop shadow for depth — no coloured glow
-        this.ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
-        this.ctx.shadowBlur = 4;
-        this.ctx.shadowOffsetY = 1;
+        this.ctx.shadowColor = s.glow;
+        this.ctx.shadowBlur = s.glowBlur;
 
         segments.forEach((segment, index) => {
             const isHead = index === 0;
             const x = segment.x * size;
             const y = segment.y * size;
 
-            // A single muted green, gently darkening toward the tail
+            // Hue/lightness interpolate from head to tail (flat when head === tail)
             const ratio = len > 1 ? index / (len - 1) : 0;
-            const light = isHead ? 60 : 56 - ratio * 14;
-            this.ctx.fillStyle = `hsl(150, 30%, ${light}%)`;
+            const hue = s.hueHead + (s.hueTail - s.hueHead) * ratio;
+            const light = s.lightHead + (s.lightTail - s.lightHead) * ratio;
+            this.ctx.fillStyle = `hsl(${hue}, ${s.sat}%, ${light}%)`;
 
             if (isHead) {
-                this.drawRoundedSegment(x, y, size, 8);
+                this.drawRoundedSegment(x, y, size, s.corner);
                 this.ctx.shadowColor = 'transparent';
-                this.drawSnakeEyes(x, y);
-                this.ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+                this.drawSnakeEyes(x, y, s.eye);
+                this.ctx.shadowColor = s.glow;
             } else {
-                this.drawBodySegment(segment, segments[index - 1], segments[index + 1], x, y, size);
+                this.drawBodySegment(segment, segments[index - 1], segments[index + 1], x, y, size, s.corner);
             }
         });
 
@@ -349,7 +452,7 @@ class Game {
         this.ctx.shadowOffsetY = 0;
     }
 
-    drawBodySegment(segment, prevSegment, nextSegment, x, y, size) {
+    drawBodySegment(segment, prevSegment, nextSegment, x, y, size, corner) {
         // Calculate the connection direction with previous and next segments
         const prevDir = prevSegment ? {
             x: segment.x - prevSegment.x,
@@ -373,7 +476,7 @@ class Game {
 
         // Draw the main segment body
         this.ctx.beginPath();
-        this.ctx.roundRect(x, y, size - 1, size - 1, 4);
+        this.ctx.roundRect(x, y, size - 1, size - 1, Math.min(corner, 5));
         this.ctx.fill();
 
         // Draw additional rectangles to smooth connections
@@ -403,25 +506,21 @@ class Game {
         this.ctx.fill();
     }
 
-    drawSnakeEyes(x, y) {
-        this.ctx.fillStyle = '#000';
+    drawSnakeEyes(x, y, eyeColor) {
         const eyeSize = 3;
         const eyePadding = 6;
         const dx = this.snake.direction.x;
         const dy = this.snake.direction.y;
-        
-        // Add eye shine
         const shineSize = 1;
-        this.ctx.fillStyle = '#fff';
-        
+
         if (dx !== 0) {
             // Draw main eyes
-            this.ctx.fillStyle = '#000';
+            this.ctx.fillStyle = eyeColor;
             this.ctx.beginPath();
             this.ctx.arc(x + (dx > 0 ? 15 : 5), y + eyePadding, eyeSize, 0, 2 * Math.PI);
             this.ctx.arc(x + (dx > 0 ? 15 : 5), y + eyePadding + 8, eyeSize, 0, 2 * Math.PI);
             this.ctx.fill();
-            
+
             // Add shine to eyes
             this.ctx.fillStyle = '#fff';
             this.ctx.beginPath();
@@ -430,12 +529,12 @@ class Game {
             this.ctx.fill();
         } else {
             // Draw main eyes
-            this.ctx.fillStyle = '#000';
+            this.ctx.fillStyle = eyeColor;
             this.ctx.beginPath();
             this.ctx.arc(x + eyePadding, y + (dy > 0 ? 15 : 5), eyeSize, 0, 2 * Math.PI);
             this.ctx.arc(x + eyePadding + 8, y + (dy > 0 ? 15 : 5), eyeSize, 0, 2 * Math.PI);
             this.ctx.fill();
-            
+
             // Add shine to eyes
             this.ctx.fillStyle = '#fff';
             this.ctx.beginPath();
@@ -487,9 +586,11 @@ class Game {
     }
 
     drawEffects() {
+        const color = this.activeTheme.board.effect.color;
+
         this.ripples.forEach(r => {
             this.ctx.globalAlpha = Math.max(0, r.life) * 0.5;
-            this.ctx.strokeStyle = '#e0a16b';
+            this.ctx.strokeStyle = color;
             this.ctx.lineWidth = 1.5;
             this.ctx.beginPath();
             this.ctx.arc(r.x, r.y, r.r, 0, 2 * Math.PI);
@@ -498,7 +599,7 @@ class Game {
 
         this.particles.forEach(p => {
             this.ctx.globalAlpha = Math.max(0, p.life) * 0.8;
-            this.ctx.fillStyle = '#e0a16b';
+            this.ctx.fillStyle = color;
             this.ctx.beginPath();
             this.ctx.arc(p.x, p.y, Math.max(0.1, p.size * p.life), 0, 2 * Math.PI);
             this.ctx.fill();

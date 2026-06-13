@@ -1,10 +1,11 @@
-const CACHE_NAME = 'snake-game-v3';
+const CACHE_NAME = 'snake-game-v4';
 const ASSETS = [
     '/',
     '/index.html',
     '/styles.css',
     '/snake.js',
     '/food.js',
+    '/themes.js',
     '/game.js',
     '/main.js'
 ];
