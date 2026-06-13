@@ -37,7 +37,7 @@ class Game {
 
         // Visual effects
         this.particles = [];
-        this.scorePopups = [];
+        this.ripples = [];
 
         // Initialize game objects
         this.resetGame();
@@ -60,7 +60,7 @@ class Game {
         this.frameCount = 0;
         this.lastFpsUpdate = 0;
         this.particles = [];
-        this.scorePopups = [];
+        this.ripples = [];
 
         // Update UI
         this.updateScores();
@@ -202,8 +202,8 @@ class Game {
         const foodPos = this.food.getPosition();
         
         if (head.x === foodPos.x && head.y === foodPos.y) {
-            // Burst of particles + floating score at the food's location
-            this.spawnFoodEffects(foodPos.x, foodPos.y, this.food.getValue());
+            // Subtle ripple + a few soft particles where the food was
+            this.spawnFoodEffects(foodPos.x, foodPos.y);
 
             // Increase score
             this.score += this.food.getValue();
@@ -246,37 +246,27 @@ class Game {
         const g = this.gridCtx;
         g.clearRect(0, 0, this.gridCanvas.width, this.gridCanvas.height);
 
-        // Faint neon grid lines
-        g.strokeStyle = 'rgba(0, 240, 255, 0.06)';
+        // Barely-there grid for spatial reference
+        g.strokeStyle = 'rgba(255, 255, 255, 0.035)';
         g.lineWidth = 1;
-        for (let i = 0; i <= this.width; i++) {
+        for (let i = 1; i < this.width; i++) {
             g.beginPath();
             g.moveTo(i * this.gridSize, 0);
             g.lineTo(i * this.gridSize, this.canvas.height);
             g.stroke();
         }
-        for (let i = 0; i <= this.height; i++) {
+        for (let i = 1; i < this.height; i++) {
             g.beginPath();
             g.moveTo(0, i * this.gridSize);
             g.lineTo(this.canvas.width, i * this.gridSize);
             g.stroke();
-        }
-
-        // Glowing dots at the intersections
-        g.fillStyle = 'rgba(0, 240, 255, 0.18)';
-        for (let i = 0; i <= this.width; i++) {
-            for (let j = 0; j <= this.height; j++) {
-                g.beginPath();
-                g.arc(i * this.gridSize, j * this.gridSize, 0.9, 0, 2 * Math.PI);
-                g.fill();
-            }
         }
     }
 
     render() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // Layered scene: animated background → grid → food → snake → effects
+        // Layered scene: background → grid → food → snake → effects
         this.drawBackground();
         this.ctx.drawImage(this.gridCanvas, 0, 0);
         this.drawFood();
@@ -287,25 +277,16 @@ class Game {
     drawBackground() {
         const w = this.canvas.width;
         const h = this.canvas.height;
-        const t = performance.now() / 1000;
 
-        // Deep synthwave gradient base
-        const base = this.ctx.createLinearGradient(0, 0, w, h);
-        base.addColorStop(0, '#0a0524');
-        base.addColorStop(1, '#15093a');
-        this.ctx.fillStyle = base;
+        // Calm, flat base with a soft vignette for depth
+        this.ctx.fillStyle = '#15161c';
         this.ctx.fillRect(0, 0, w, h);
 
-        // Slowly drifting glow blobs for depth
-        const blob = (x, y, r, color) => {
-            const grad = this.ctx.createRadialGradient(x, y, 0, x, y, r);
-            grad.addColorStop(0, color);
-            grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-            this.ctx.fillStyle = grad;
-            this.ctx.fillRect(0, 0, w, h);
-        };
-        blob(w * 0.3 + Math.sin(t * 0.4) * 40, h * 0.25 + Math.cos(t * 0.3) * 40, 190, 'rgba(0, 200, 255, 0.10)');
-        blob(w * 0.75 + Math.cos(t * 0.35) * 40, h * 0.8 + Math.sin(t * 0.45) * 40, 210, 'rgba(255, 60, 200, 0.10)');
+        const vignette = this.ctx.createRadialGradient(w / 2, h / 2, h * 0.25, w / 2, h / 2, h * 0.75);
+        vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
+        vignette.addColorStop(1, 'rgba(0, 0, 0, 0.35)');
+        this.ctx.fillStyle = vignette;
+        this.ctx.fillRect(0, 0, w, h);
     }
 
     drawFood() {
@@ -313,46 +294,23 @@ class Game {
         const t = performance.now() / 1000;
         const cx = (foodPos.x + 0.5) * this.gridSize;
         const cy = (foodPos.y + 0.5) * this.gridSize;
-        const pulse = 1 + Math.sin(t * 5) * 0.12;
-        const baseRadius = (this.gridSize / 2.6) * pulse;
+        const pulse = 1 + Math.sin(t * 3) * 0.06;
+        const radius = (this.gridSize / 2.8) * pulse;
 
-        // Outer glow halo
-        const glow = this.ctx.createRadialGradient(cx, cy, baseRadius * 0.2, cx, cy, baseRadius * 2.2);
-        glow.addColorStop(0, 'rgba(255, 170, 60, 0.9)');
-        glow.addColorStop(0.5, 'rgba(255, 90, 160, 0.35)');
-        glow.addColorStop(1, 'rgba(255, 90, 160, 0)');
-        this.ctx.fillStyle = glow;
+        // Soft single-colour body with a gentle shadow (no neon halo)
+        this.ctx.save();
+        this.ctx.shadowColor = 'rgba(224, 161, 107, 0.45)';
+        this.ctx.shadowBlur = 10;
+        this.ctx.fillStyle = '#e0a16b';
         this.ctx.beginPath();
-        this.ctx.arc(cx, cy, baseRadius * 2.2, 0, 2 * Math.PI);
+        this.ctx.arc(cx, cy, radius, 0, 2 * Math.PI);
         this.ctx.fill();
+        this.ctx.restore();
 
-        // Glowing core orb
-        const core = this.ctx.createRadialGradient(
-            cx - baseRadius * 0.3, cy - baseRadius * 0.3, baseRadius * 0.1,
-            cx, cy, baseRadius
-        );
-        core.addColorStop(0, '#fff3d6');
-        core.addColorStop(0.4, '#ffd24a');
-        core.addColorStop(1, '#ff7a3d');
-        this.ctx.fillStyle = core;
-        this.ctx.shadowColor = '#ff9a3d';
-        this.ctx.shadowBlur = 18;
+        // Subtle highlight
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
         this.ctx.beginPath();
-        this.ctx.arc(cx, cy, baseRadius, 0, 2 * Math.PI);
-        this.ctx.fill();
-        this.ctx.shadowBlur = 0;
-
-        // Orbiting sparkle
-        const orbit = baseRadius * 1.4;
-        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-        this.ctx.beginPath();
-        this.ctx.arc(cx + Math.cos(t * 3) * orbit, cy + Math.sin(t * 3) * orbit, 1.6, 0, 2 * Math.PI);
-        this.ctx.fill();
-
-        // Specular shine
-        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-        this.ctx.beginPath();
-        this.ctx.arc(cx - baseRadius * 0.3, cy - baseRadius * 0.3, baseRadius * 0.22, 0, 2 * Math.PI);
+        this.ctx.arc(cx - radius * 0.3, cy - radius * 0.3, radius * 0.3, 0, 2 * Math.PI);
         this.ctx.fill();
     }
 
@@ -361,22 +319,26 @@ class Game {
         const size = this.gridSize;
         const len = segments.length;
 
+        // Soft drop shadow for depth — no coloured glow
+        this.ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+        this.ctx.shadowBlur = 4;
+        this.ctx.shadowOffsetY = 1;
+
         segments.forEach((segment, index) => {
             const isHead = index === 0;
             const x = segment.x * size;
             const y = segment.y * size;
 
-            // Hue glides from cyan at the head to magenta along the tail
+            // A single muted green, gently darkening toward the tail
             const ratio = len > 1 ? index / (len - 1) : 0;
-            const hue = 185 + ratio * 110;
-            this.ctx.fillStyle = `hsl(${hue}, 95%, ${isHead ? 65 : 55}%)`;
-            this.ctx.shadowColor = `hsla(${hue}, 95%, 60%, 0.9)`;
-            this.ctx.shadowBlur = isHead ? 16 : 10;
+            const light = isHead ? 60 : 56 - ratio * 14;
+            this.ctx.fillStyle = `hsl(150, 30%, ${light}%)`;
 
             if (isHead) {
                 this.drawRoundedSegment(x, y, size, 8);
-                this.ctx.shadowBlur = 0;
+                this.ctx.shadowColor = 'transparent';
                 this.drawSnakeEyes(x, y);
+                this.ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
             } else {
                 this.drawBodySegment(segment, segments[index - 1], segments[index + 1], x, y, size);
             }
@@ -384,6 +346,7 @@ class Game {
 
         // Reset shadow
         this.ctx.shadowBlur = 0;
+        this.ctx.shadowOffsetY = 0;
     }
 
     drawBodySegment(segment, prevSegment, nextSegment, x, y, size) {
@@ -482,25 +445,27 @@ class Game {
         }
     }
 
-    spawnFoodEffects(gridX, gridY, value) {
+    spawnFoodEffects(gridX, gridY) {
         const cx = (gridX + 0.5) * this.gridSize;
         const cy = (gridY + 0.5) * this.gridSize;
-        const count = 18;
-        for (let i = 0; i < count; i++) {
-            const angle = (2 * Math.PI * i) / count + Math.random() * 0.4;
-            const speed = 1.5 + Math.random() * 2.5;
+
+        // One expanding ring
+        this.ripples.push({ x: cx, y: cy, r: this.gridSize * 0.3, life: 1 });
+
+        // A handful of soft particles in the food's own colour
+        for (let i = 0; i < 8; i++) {
+            const angle = Math.random() * 2 * Math.PI;
+            const speed = 0.8 + Math.random() * 1.6;
             this.particles.push({
                 x: cx,
                 y: cy,
                 vx: Math.cos(angle) * speed,
                 vy: Math.sin(angle) * speed,
                 life: 1,
-                decay: 0.02 + Math.random() * 0.02,
-                size: 2 + Math.random() * 3,
-                hue: 30 + Math.random() * 300 // warm-to-magenta confetti
+                decay: 0.03 + Math.random() * 0.02,
+                size: 1.5 + Math.random() * 1.5
             });
         }
-        this.scorePopups.push({ x: cx, y: cy, life: 1, value });
     }
 
     updateEffects() {
@@ -508,46 +473,38 @@ class Game {
             const p = this.particles[i];
             p.x += p.vx;
             p.y += p.vy;
-            p.vx *= 0.92;
-            p.vy *= 0.92;
+            p.vx *= 0.9;
+            p.vy *= 0.9;
             p.life -= p.decay;
             if (p.life <= 0) this.particles.splice(i, 1);
         }
-        for (let i = this.scorePopups.length - 1; i >= 0; i--) {
-            const s = this.scorePopups[i];
-            s.y -= 0.6;
-            s.life -= 0.02;
-            if (s.life <= 0) this.scorePopups.splice(i, 1);
+        for (let i = this.ripples.length - 1; i >= 0; i--) {
+            const r = this.ripples[i];
+            r.r += 0.8;
+            r.life -= 0.05;
+            if (r.life <= 0) this.ripples.splice(i, 1);
         }
     }
 
     drawEffects() {
-        // Particle burst
+        this.ripples.forEach(r => {
+            this.ctx.globalAlpha = Math.max(0, r.life) * 0.5;
+            this.ctx.strokeStyle = '#e0a16b';
+            this.ctx.lineWidth = 1.5;
+            this.ctx.beginPath();
+            this.ctx.arc(r.x, r.y, r.r, 0, 2 * Math.PI);
+            this.ctx.stroke();
+        });
+
         this.particles.forEach(p => {
-            this.ctx.globalAlpha = Math.max(0, p.life);
-            this.ctx.fillStyle = `hsl(${p.hue}, 100%, 65%)`;
-            this.ctx.shadowColor = this.ctx.fillStyle;
-            this.ctx.shadowBlur = 8;
+            this.ctx.globalAlpha = Math.max(0, p.life) * 0.8;
+            this.ctx.fillStyle = '#e0a16b';
             this.ctx.beginPath();
             this.ctx.arc(p.x, p.y, Math.max(0.1, p.size * p.life), 0, 2 * Math.PI);
             this.ctx.fill();
         });
-        this.ctx.globalAlpha = 1;
-        this.ctx.shadowBlur = 0;
 
-        // Floating "+score" popups
-        this.scorePopups.forEach(s => {
-            this.ctx.globalAlpha = Math.max(0, s.life);
-            this.ctx.font = 'bold 16px Arial';
-            this.ctx.textAlign = 'center';
-            this.ctx.fillStyle = '#fff';
-            this.ctx.shadowColor = '#ff2bd6';
-            this.ctx.shadowBlur = 10;
-            this.ctx.fillText(`+${s.value}`, s.x, s.y);
-        });
         this.ctx.globalAlpha = 1;
-        this.ctx.shadowBlur = 0;
-        this.ctx.textAlign = 'start';
     }
 
     gameLoop(currentTime) {
