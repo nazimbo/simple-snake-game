@@ -3,40 +3,103 @@
 //
 // A Web Audio context can only start after a user gesture, so the context is
 // created lazily (ensureContext) the first time playback is requested, which
-// always happens from a click/keypress (Start button, mute toggle, etc.).
+// always happens from a click/keypress (Start button, track/mute toggle, etc.).
 //
-// Music is a 4-bar loop (Am–F–C–G) driven by a look-ahead scheduler for tight
-// timing: a lead melody, an arpeggio, a bass line and drums (kick/snare/hat),
-// softened by a low-pass filter and an echo send.
+// Each track is a 4-bar loop driven by a look-ahead scheduler for tight timing:
+// a lead melody, an arpeggio, a bass line and drums (kick/snare/hat), softened
+// by a low-pass filter and an echo send. Tracks are plain data in MUSIC_TRACKS,
+// so adding one is just another entry.
 
 function midiToFreq(m) {
     return 440 * Math.pow(2, (m - 69) / 12);
 }
 
-// Per-bar patterns (16 sixteenth-notes each); null = rest. Concatenated into a
-// 64-step loop over the chord progression Am – F – C – G.
-const LEAD = [
-    76, null, 72, null, 74, null, 76, null, 81, null, null, 79, 76, null, 74, null, // Am
-    72, null, 69, null, 72, null, 77, null, 76, null, null, 74, 72, null, 69, null, // F
-    76, null, 79, null, 76, null, 72, null, 74, null, null, 76, 79, null, 76, null, // C
-    74, null, 71, null, 74, null, 79, null, 77, null, null, 74, 71, null, 74, null  // G
+const rep = (arr, n) => {
+    let out = [];
+    for (let i = 0; i < n; i++) out = out.concat(arr);
+    return out;
+};
+const rest = (n) => new Array(n).fill(null);
+
+const MUSIC_TRACKS = [
+    {
+        id: 'adventure',
+        label: 'Adventure',
+        bpm: 128,
+        leadType: 'square',
+        lead: [
+            76, null, 72, null, 74, null, 76, null, 81, null, null, 79, 76, null, 74, null, // Am
+            72, null, 69, null, 72, null, 77, null, 76, null, null, 74, 72, null, 69, null, // F
+            76, null, 79, null, 76, null, 72, null, 74, null, null, 76, 79, null, 76, null, // C
+            74, null, 71, null, 74, null, 79, null, 77, null, null, 74, 71, null, 74, null  // G
+        ],
+        bass: [
+            45, null, null, null, 45, null, null, null, 57, null, null, null, 52, null, null, null,
+            41, null, null, null, 41, null, null, null, 53, null, null, null, 48, null, null, null,
+            48, null, null, null, 48, null, null, null, 60, null, null, null, 55, null, null, null,
+            43, null, null, null, 43, null, null, null, 55, null, null, null, 50, null, null, null
+        ],
+        arp: [
+            ...rep([69, 72, 76, 81], 4), ...rep([65, 69, 72, 77], 4),
+            ...rep([72, 76, 79, 84], 4), ...rep([67, 71, 74, 79], 4)
+        ],
+        kick:  [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+        snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+        hat:   [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0]
+    },
+    {
+        id: 'sunrise',
+        label: 'Sunrise',
+        bpm: 120,
+        leadType: 'square',
+        lead: [
+            72, null, 76, null, 79, null, 76, null, 72, null, 74, null, 76, null, null, null, // C
+            74, null, 71, null, 67, null, 71, null, 74, null, 76, null, 74, null, null, null, // G
+            72, null, 76, null, 81, null, 79, null, 76, null, 72, null, 74, null, null, null, // Am
+            69, null, 72, null, 77, null, 72, null, 69, null, 65, null, 67, null, null, null  // F
+        ],
+        bass: [
+            48, null, null, null, 48, null, null, null, 60, null, null, null, 55, null, null, null,
+            43, null, null, null, 43, null, null, null, 55, null, null, null, 50, null, null, null,
+            45, null, null, null, 45, null, null, null, 57, null, null, null, 52, null, null, null,
+            41, null, null, null, 41, null, null, null, 53, null, null, null, 48, null, null, null
+        ],
+        arp: [
+            ...rep([60, 64, 67, 72], 4), ...rep([55, 59, 62, 67], 4),
+            ...rep([57, 60, 64, 69], 4), ...rep([53, 57, 60, 65], 4)
+        ],
+        kick:  [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+        snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+        hat:   [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0]
+    },
+    {
+        id: 'midnight',
+        label: 'Midnight',
+        bpm: 124,
+        leadType: 'sawtooth',
+        lead: [
+            69, null, null, null, 72, null, 76, null, null, null, 72, null, 69, null, null, null, // Am
+            67, null, null, null, 71, null, 74, null, null, null, 71, null, 67, null, null, null, // G
+            65, null, null, null, 69, null, 72, null, null, null, 69, null, 65, null, null, null, // F
+            64, null, null, null, 68, null, 71, null, null, null, 68, null, 64, null, null, null  // E
+        ],
+        bass: [
+            45, null, null, null, 45, null, null, null, 45, null, null, null, 45, null, null, null,
+            43, null, null, null, 43, null, null, null, 43, null, null, null, 43, null, null, null,
+            41, null, null, null, 41, null, null, null, 41, null, null, null, 41, null, null, null,
+            40, null, null, null, 40, null, null, null, 40, null, null, null, 40, null, null, null
+        ],
+        arp: rest(64),
+        kick:  [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+        snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+        hat:   [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0]
+    },
+    {
+        id: 'off',
+        label: 'Off',
+        silent: true
+    }
 ];
-const BASS = [
-    45, null, null, null, 45, null, null, null, 57, null, null, null, 52, null, null, null, // A2
-    41, null, null, null, 41, null, null, null, 53, null, null, null, 48, null, null, null, // F2
-    48, null, null, null, 48, null, null, null, 60, null, null, null, 55, null, null, null, // C3
-    43, null, null, null, 43, null, null, null, 55, null, null, null, 50, null, null, null  // G2
-];
-const ARP = [
-    69, 72, 76, 81, 69, 72, 76, 81, 69, 72, 76, 81, 69, 72, 76, 81, // Am: A C E A
-    65, 69, 72, 77, 65, 69, 72, 77, 65, 69, 72, 77, 65, 69, 72, 77, // F:  F A C F
-    72, 76, 79, 84, 72, 76, 79, 84, 72, 76, 79, 84, 72, 76, 79, 84, // C:  C E G C
-    67, 71, 74, 79, 67, 71, 74, 79, 67, 71, 74, 79, 67, 71, 74, 79  // G:  G B D G
-];
-// Drum hits repeat every bar: kick on 1 & 3, snare on 2 & 4, hat on the offbeats
-const BAR_KICK  = [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0];
-const BAR_SNARE = [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0];
-const BAR_HAT   = [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0];
 
 class AudioManager {
     constructor() {
@@ -55,7 +118,14 @@ class AudioManager {
             // localStorage unavailable — default to unmuted
         }
 
-        this.bpm = 128;
+        let storedTrack = null;
+        try {
+            storedTrack = localStorage.getItem('snakeTrack');
+        } catch (e) {
+            // ignore
+        }
+        this.track = MUSIC_TRACKS.find((t) => t.id === storedTrack) || MUSIC_TRACKS[0];
+
         this.totalSteps = 64;
         this.currentStep = 0;
         this.nextNoteTime = 0;
@@ -64,8 +134,17 @@ class AudioManager {
         this.scheduleAhead = 0.12;  // how far ahead to schedule (s)
     }
 
+    getTracks() {
+        return MUSIC_TRACKS;
+    }
+
+    getTrackId() {
+        return this.track ? this.track.id : null;
+    }
+
     stepDuration() {
-        return (60 / this.bpm) / 4; // sixteenth note
+        const bpm = this.track && this.track.bpm ? this.track.bpm : 128;
+        return (60 / bpm) / 4; // sixteenth note
     }
 
     ensureContext() {
@@ -171,22 +250,26 @@ class AudioManager {
     }
 
     scheduleStep(step, time) {
+        const t = this.track;
         const dur = this.stepDuration();
         const bar = step % 16;
 
-        if (LEAD[step]) this.voice(midiToFreq(LEAD[step]), time, dur * 1.7, 'square', 0.17, true);
-        if (BASS[step]) this.voice(midiToFreq(BASS[step]), time, dur * 1.4, 'triangle', 0.24, false);
-        if (ARP[step]) this.voice(midiToFreq(ARP[step]), time, dur * 0.8, 'square', 0.08, true);
+        if (t.lead[step]) this.voice(midiToFreq(t.lead[step]), time, dur * 1.7, t.leadType, 0.17, true);
+        if (t.bass[step]) this.voice(midiToFreq(t.bass[step]), time, dur * 1.4, 'triangle', 0.24, false);
+        if (t.arp[step]) this.voice(midiToFreq(t.arp[step]), time, dur * 0.8, 'square', 0.08, true);
 
-        if (BAR_KICK[bar]) this.kick(time);
-        if (BAR_SNARE[bar]) this.noiseHit(time, 1500, 0.28, 0.12);
-        if (BAR_HAT[bar]) this.noiseHit(time, 7000, 0.12, 0.04);
+        if (t.kick[bar]) this.kick(time);
+        if (t.snare[bar]) this.noiseHit(time, 1500, 0.28, 0.12);
+        if (t.hat[bar]) this.noiseHit(time, 7000, 0.12, 0.04);
     }
 
     startMusic() {
         this.ensureContext();
         if (!this.ctx || this.timerId) return;
+        if (!this.track || this.track.silent) return;
 
+        this.totalSteps = this.track.lead.length;
+        if (this.delay) this.delay.delayTime.value = this.stepDuration() * 3;
         this.currentStep = 0;
         this.nextNoteTime = this.ctx.currentTime + 0.05;
         this.timerId = setInterval(() => {
@@ -203,6 +286,22 @@ class AudioManager {
         if (this.timerId) {
             clearInterval(this.timerId);
             this.timerId = null;
+        }
+    }
+
+    setTrack(id) {
+        const next = MUSIC_TRACKS.find((t) => t.id === id);
+        if (!next) return;
+        this.track = next;
+        try {
+            localStorage.setItem('snakeTrack', next.id);
+        } catch (e) {
+            // ignore
+        }
+        // If music is currently playing, swap to the new track immediately
+        if (this.timerId) {
+            this.stopMusic();
+            this.startMusic();
         }
     }
 

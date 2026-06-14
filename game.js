@@ -67,6 +67,7 @@ class Game {
         this.resetGame();
         this.setupEventListeners();
         this.setupThemePicker();
+        this.setupMusicPicker();
         this.updateHighScoreDisplays();
 
         // Pre-render the grid and paint one frame (visible behind the start overlay).
@@ -145,6 +146,41 @@ class Game {
             ? `${speaker}<line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>`
             : `${speaker}<path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a9 9 0 0 1 0 14"/>`;
         button.innerHTML = `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icon}</svg>`;
+    }
+
+    setupMusicPicker() {
+        const container = document.getElementById('musicPicker');
+        if (!container || !this.audio) return;
+
+        container.innerHTML = '';
+        this.audio.getTracks().forEach(track => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'music-chip';
+            btn.dataset.trackId = track.id;
+            btn.textContent = track.label;
+            btn.addEventListener('click', () => {
+                // Switch track and preview it immediately (the click is the
+                // gesture that lets the audio context start)
+                this.audio.resume();
+                this.audio.setTrack(track.id);
+                this.audio.stopMusic();
+                this.audio.startMusic(); // no-op for the silent "Off" track
+                this.updateMusicPickerSelection();
+            });
+            container.appendChild(btn);
+        });
+
+        this.updateMusicPickerSelection();
+    }
+
+    updateMusicPickerSelection() {
+        const container = document.getElementById('musicPicker');
+        if (!container || !this.audio) return;
+        const id = this.audio.getTrackId();
+        container.querySelectorAll('.music-chip').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.trackId === id);
+        });
     }
 
     setupThemePicker() {

@@ -10,7 +10,7 @@
 const THEMES = [
     {
         id: 'slate',
-        label: 'Sobre',
+        label: 'Slate',
         ui: {
             bg: '#15161c', surface: 'rgba(255,255,255,0.035)', border: 'rgba(255,255,255,0.08)',
             text: '#e7e8ec', textDim: '#8b8e99', accent: '#79b894', food: '#e0a16b',
@@ -27,7 +27,7 @@ const THEMES = [
     },
     {
         id: 'neon',
-        label: 'Néon',
+        label: 'Neon',
         ui: {
             bg: '#0a0420', surface: 'rgba(255,255,255,0.04)', border: 'rgba(0,240,255,0.18)',
             text: '#f3edff', textDim: '#9d8fc7', accent: '#00f0ff', food: '#ffd24a',
@@ -61,7 +61,7 @@ const THEMES = [
     },
     {
         id: 'forest',
-        label: 'Forêt',
+        label: 'Forest',
         ui: {
             bg: '#1b2419', surface: 'rgba(255,255,255,0.04)', border: 'rgba(140,180,120,0.15)',
             text: '#e8efe0', textDim: '#9bae8c', accent: '#8fc46b', food: '#e6794b',
@@ -78,7 +78,7 @@ const THEMES = [
     },
     {
         id: 'ocean',
-        label: 'Océan',
+        label: 'Ocean',
         ui: {
             bg: '#0c1a26', surface: 'rgba(255,255,255,0.04)', border: 'rgba(90,180,210,0.15)',
             text: '#dff0f6', textDim: '#7fa8b8', accent: '#34c6c6', food: '#ffcf5c',
@@ -112,7 +112,7 @@ const THEMES = [
     },
     {
         id: 'ember',
-        label: 'Lave',
+        label: 'Lava',
         ui: {
             bg: '#1a0f0c', surface: 'rgba(255,255,255,0.04)', border: 'rgba(255,120,60,0.18)',
             text: '#ffe9df', textDim: '#c79a8c', accent: '#ff7a3d', food: '#ffd24a',
