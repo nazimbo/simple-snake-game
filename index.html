@@ -15,7 +15,8 @@
 
         <div class="board">
             <canvas id="gameCanvas" width="400" height="400"></canvas>
-            <button id="exitButton" class="board-exit" type="button" aria-label="Exit to menu" title="Exit to menu">
+            <button id="muteButton" class="board-btn board-mute" type="button" aria-label="Toggle sound" title="Toggle sound (M)"></button>
+            <button id="exitButton" class="board-btn board-exit" type="button" aria-label="Exit to menu" title="Exit to menu">
                 <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M3 11l9-8 9 8"/>
                     <path d="M5 10v10h14V10"/>
@@ -77,6 +78,7 @@
     <script src="snake.js"></script>
     <script src="food.js"></script>
     <script src="themes.js"></script>
+    <script src="audio.js"></script>
     <script src="game.js"></script>
     <script src="main.js"></script>
 </body>

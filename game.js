@@ -60,6 +60,9 @@ class Game {
         this.activeTheme = ThemeManager.getInitial();
         ThemeManager.applyUI(this.activeTheme.ui);
 
+        // Procedural music + sound effects (no-op if Web Audio is unavailable)
+        this.audio = (typeof AudioManager !== 'undefined') ? new AudioManager() : null;
+
         // Initialize game objects
         this.resetGame();
         this.setupEventListeners();
@@ -114,6 +117,16 @@ class Game {
             if (button) button.addEventListener('click', () => this.quitToMenu());
         });
 
+        // Sound toggle
+        const muteButton = document.getElementById('muteButton');
+        if (muteButton) {
+            muteButton.addEventListener('click', () => {
+                if (this.audio) this.audio.toggleMute();
+                this.updateMuteIcon();
+            });
+        }
+        this.updateMuteIcon();
+
         // Debug toggle (Ctrl + D)
         document.addEventListener('keydown', (e) => {
             if (e.ctrlKey && e.key === 'd') {
@@ -121,6 +134,17 @@ class Game {
                 this.toggleDebug();
             }
         });
+    }
+
+    updateMuteIcon() {
+        const button = document.getElementById('muteButton');
+        if (!button) return;
+        const muted = this.audio ? this.audio.isMuted() : true;
+        const speaker = '<path d="M11 5L6 9H2v6h4l5 4V5z"/>';
+        const icon = muted
+            ? `${speaker}<line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>`
+            : `${speaker}<path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a9 9 0 0 1 0 14"/>`;
+        button.innerHTML = `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icon}</svg>`;
     }
 
     setupThemePicker() {
@@ -187,6 +211,12 @@ class Game {
             return;
         }
 
+        if (e.key === 'm' || e.key === 'M') {
+            if (this.audio) this.audio.toggleMute();
+            this.updateMuteIcon();
+            return;
+        }
+
         if (!this.gameStarted || this.gameOver) return;
 
         const currentTime = performance.now();
@@ -225,11 +255,16 @@ class Game {
         this.gameStarted = true;
         this.hideAllScreens();
         this.resetGame();
+        if (this.audio) {
+            this.audio.resume();
+            this.audio.startMusic();
+        }
         this.gameLoop(0);
     }
 
     quitToMenu() {
         cancelAnimationFrame(this.animationFrameId);
+        if (this.audio) this.audio.stopMusic();
 
         // Reset back to a fresh, unstarted game and show the start screen
         this.gameStarted = false;
@@ -255,9 +290,14 @@ class Game {
         
         if (this.isPaused) {
             cancelAnimationFrame(this.animationFrame);
+            if (this.audio) this.audio.stopMusic();
             if (pauseScreen) pauseScreen.style.display = 'flex';
         } else {
             if (pauseScreen) pauseScreen.style.display = 'none';
+            if (this.audio) {
+                this.audio.resume();
+                this.audio.startMusic();
+            }
             this.lastRenderTime = 0;
             this.gameLoop(0);
         }
@@ -315,6 +355,7 @@ class Game {
         if (head.x === foodPos.x && head.y === foodPos.y) {
             // Subtle ripple + a few soft particles where the food was
             this.spawnFoodEffects(foodPos.x, foodPos.y);
+            if (this.audio) this.audio.playEat();
 
             // Increase score
             this.score += this.food.getValue();
@@ -688,7 +729,11 @@ class Game {
 
     endGame() {
         this.gameOver = true;
-        
+        if (this.audio) {
+            this.audio.stopMusic();
+            this.audio.playGameOver();
+        }
+
         // Update high score
         if (this.score > this.highScore) {
             this.highScore = this.score;
@@ -706,7 +751,11 @@ class Game {
 
     winGame() {
         this.gameOver = true;
-        
+        if (this.audio) {
+            this.audio.stopMusic();
+            this.audio.playWin();
+        }
+
         // Update scores
         if (this.score > this.highScore) {
             this.highScore = this.score;
@@ -724,6 +773,10 @@ class Game {
 
     restart() {
         this.resetGame();
+        if (this.audio) {
+            this.audio.resume();
+            this.audio.startMusic();
+        }
         this.gameLoop(0);
     }
 }

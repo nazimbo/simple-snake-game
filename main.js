@@ -10,6 +10,10 @@ window.addEventListener('load', () => {
         // Initialize game
         const game = new Game(canvas);
 
+        // Expose globally so the visibility/beforeunload handlers below can
+        // auto-pause the game (and its music) when the tab is hidden
+        window.game = game;
+
         // Add touch controls for mobile devices
         if ('ontouchstart' in window) {
             setupTouchControls(game);

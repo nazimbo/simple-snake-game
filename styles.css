@@ -69,12 +69,11 @@ body {
     line-height: 0;
 }
 
-/* Floating exit button — sits on the board corner, only visible while
-   playing (the overlays cover it on every other screen) */
-.board-exit {
+/* Floating board buttons — sit on the board corners, only visible while
+   playing (the overlays cover them on every other screen) */
+.board-btn {
     position: absolute;
     top: 10px;
-    right: 10px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -92,14 +91,17 @@ body {
     transition: opacity 0.15s ease, background 0.15s ease;
 }
 
-.board-exit:hover {
+.board-btn:hover {
     opacity: 1;
     background: rgba(15, 16, 22, 0.7);
 }
 
-.board-exit svg {
+.board-btn svg {
     display: block;
 }
+
+.board-exit { right: 10px; }
+.board-mute { left: 10px; }
 
 canvas {
     width: 100%;
