@@ -125,10 +125,21 @@ function showErrorMessage(message) {
 
 // Add PWA support
 if ('serviceWorker' in navigator) {
+    // When a new service worker takes control (after an update), reload once so
+    // the page runs the fresh HTML/JS instead of stale cached code.
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (refreshing) return;
+        refreshing = true;
+        window.location.reload();
+    });
+
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/service-worker.js').catch(error => {
-            console.log('ServiceWorker registration failed:', error);
-        });
+        navigator.serviceWorker.register('/service-worker.js')
+            .then((registration) => registration.update())
+            .catch((error) => {
+                console.log('ServiceWorker registration failed:', error);
+            });
     });
 }
 
