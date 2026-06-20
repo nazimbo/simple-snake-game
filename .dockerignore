@@ -3,7 +3,6 @@
 Dockerfile
 docker-compose.yml
 .dockerignore
-nginx.conf
 CLAUDE.md
 README.md
 package.json
