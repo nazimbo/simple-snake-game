@@ -1,0 +1,13 @@
+# Static site served by nginx; the shared edge Caddy reverse-proxies the app's
+# subdomain to snake-web:80 over the external 'edge' network.
+services:
+  snake-web:
+    build: .
+    image: snake-web
+    container_name: snake-web
+    restart: unless-stopped
+    networks:
+      - edge
+networks:
+  edge:
+    external: true
