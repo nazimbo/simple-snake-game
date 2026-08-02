@@ -7,7 +7,21 @@ concurrency:
   group: deploy-vps
   cancel-in-progress: false
 jobs:
+  # No build step and no dependencies — the site is hand-written files served by
+  # nginx. The one thing that can break in silence is index.html referencing a
+  # script that no longer exists: the page still returns 200 and the game is
+  # simply dead. scripts/check-assets.mjs catches exactly that.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/check-assets.mjs
+
   deploy:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
