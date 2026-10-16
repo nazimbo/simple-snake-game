@@ -12,7 +12,7 @@ jobs:
   # script that no longer exists: the page still returns 200 and the game is
   # simply dead. scripts/check-assets.mjs catches exactly that.
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER && fromJSON(vars.CI_RUNNER) || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,7 +22,7 @@ jobs:
 
   deploy:
     needs: test
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER && fromJSON(vars.CI_RUNNER) || 'ubuntu-latest' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
