@@ -32,14 +32,22 @@ jobs:
           printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           printf '%s\n' "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+      # The deploy key is bound on the VPS to /root/deploiement/porte.sh: rsync may only write
+      # into this project's folder (the path is relative to it), and the only command is
+      # "deployer", which validates the compose file, rebuilds, and checks every container
+      # runs the freshly built image. Anything else is refused.
       - name: Sync project to VPS
         run: |
           rsync -az --delete \
             --exclude '.git' --exclude 'node_modules' --exclude 'dist' --exclude 'build' --exclude '.svelte-kit' \
             -e "ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes" \
-            ./ "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.VPS_PATH }}/"
+            ./ "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:./"
       - name: Build and restart containers
         run: |
           ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes \
-            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
-            "cd '${{ secrets.VPS_PATH }}' && docker compose up -d --build && docker image prune -f"
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" deployer
+      - name: Check the site end to end
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 https://snake.nazimbo.com/)
+          echo "https://snake.nazimbo.com/ → $code"
+          test "$code" = 200
