@@ -48,6 +48,11 @@ jobs:
             "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" deployer
       - name: Check the site end to end
         run: |
-          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 https://snake.nazimbo.com/)
+          # the container may take a few seconds to listen after a restart
+          for i in $(seq 1 12); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 https://snake.nazimbo.com/ || true)
+            [ "$code" = 200 ] && break
+            sleep 5
+          done
           echo "https://snake.nazimbo.com/ → $code"
           test "$code" = 200
